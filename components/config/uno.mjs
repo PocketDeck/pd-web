@@ -1,7 +1,7 @@
 import { FormComponent, html, css } from '/components/base.mjs';
 
 class UNOConfig extends FormComponent {
-  static defaultProps = {
+  static props = {
     config: {
       play_after_draw: true,
       aggregate_draws: true,

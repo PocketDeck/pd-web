@@ -1,31 +1,31 @@
 import { FormComponent, html, css } from '/components/base.mjs';
 
 class GameConfig extends FormComponent {
-  static defaultProps = {
+  static props = {
     game: '',
     config: null,
   }
 
   static games = ['Skipbo', 'Skyjo', 'UNO'];
 
-  render() {
-    const selected = (game) => this.props.game === game ? 'selected' : '';
+  render({ props }) {
+    const selected = (game) => props.game === game ? 'selected' : '';
     const options = GameConfig.games.map(game =>
       html`<option value="${game.toLowerCase()}" ${selected(game.toLowerCase())}>${game}</option>`
     ).join('');
 
-    let configPass = this.props.config ? `config="${this.propsHTML.config}"` : '';
+    let configPass = props.config ? html`config="${props.config}"` : '';
 
     return html`
       <select id="gameSelect" name="game" class="game-select" required>
         <option value="" disabled ${selected('')}>Select a Game</option>
         ${options}
       </select>
-      <config-${this.props.game} name="config" ${configPass}></config-${this.props.game}>
+      <config-${props.game} name="config" ${configPass}></config-${props.game}>
     `;
   }
 
-  styles() {
+  styles({ props }) {
     return css`
       :host {
         display: block;
@@ -72,7 +72,7 @@ class GameConfig extends FormComponent {
   mounted() {
     this.addShadowListener('change', (e) => {
       if (e.target.closest('#gameSelect')) {
-        const defaultConfig = () => structuredClone(this.constructor.defaultProps.config);
+        const defaultConfig = () => structuredClone(this.constructor.props.config);
 
         // Update game config form
         this.silentProps.config = defaultConfig();

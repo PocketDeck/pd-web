@@ -1,62 +1,76 @@
+import { store } from '/store.mjs'
+
+function deepReactive(target, callback, seen = new WeakMap()) {
+  if (typeof target !== 'object' || target === null) return target;
+  if (seen.has(target)) return seen.get(target);
+
+  const handler = {
+    set(obj, prop, value, receiver) {
+      const reactiveValue = deepReactive(value, callback, seen);
+      const oldValue = obj[prop];
+      const result = Reflect.set(obj, prop, reactiveValue, receiver);
+      if (result && oldValue !== reactiveValue) callback(obj, prop, reactiveValue);
+      return result;
+    },
+    deleteProperty(obj, prop) {
+      const result = Reflect.deleteProperty(obj, prop);
+      if (result) callback(obj, prop, undefined);
+      return result;
+    }
+  };
+
+  // TODO: handle Map and Set
+
+  const proxy = new Proxy(target, handler);
+  seen.set(target, proxy);
+  return proxy;
+}
+
+function deepReactiveClone(obj) {
+  if (obj instanceof Map) return Object.fromEntries(obj);
+  if (obj instanceof Set) return [...obj];
+  if (typeof obj !== 'object' || obj === null) return obj;
+
+  const plain = {};
+  for (const key in obj) {
+    plain[key] = deepReactiveClone(obj[key]);
+  }
+  return plain;
+}
+
 export class Component extends HTMLElement {
-  static defaultProps = {};
+  static props = {};
+  #mounted = false;
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this._mounted = false;
-    this.silentProps = structuredClone(this.constructor.defaultProps);
-    this.props = this.#makeReactive(this.silentProps);
-    this.propsHTML = new Proxy(this.silentProps, {
-      get: (target, prop) => {
-        const val = target[prop];
-        return val !== null && typeof val === 'object'
-          ? this._toHtmlAttr(target[prop])
-          : target[prop];
-      }
-    });
+    this.silentProps = structuredClone(this.constructor.props);
+    this.props = deepReactive(this.silentProps, this._update.bind(this));
   }
 
   static get observedAttributes() {
-    return Object.keys(this.defaultProps);
-  }
-
-  _toHtmlAttr(obj) {
-    return btoa(encodeURIComponent(JSON.stringify(obj)));
-  }
-
-  _fromHtmlAttr(str) {
-    return JSON.parse(decodeURIComponent(atob(str)));
+    return Object.keys(this.props);
   }
 
   connectedCallback() {
-    this._mounted = true;
+    this.#mounted = true;
     this._update();
     this.mounted();
   }
 
   disconnectedCallback() {
+    this.#mounted = false;
     this.unmounted();
-    this._mounted = false;
   }
 
   attributeChangedCallback(name, _, newVal) {
-    try {
-      this.props[name] = this._fromHtmlAttr(newVal);
-    } catch {
+    if (store.has(newVal)) {
+      this.props[name] = store.get(newVal);
+      store.delete(newVal);
+    } else {
       this.props[name] = newVal;
     }
-  }
-
-  #makeReactive(obj) {
-    return new Proxy(obj, {
-      set: (target, key, value) => {
-        if (target[key] === value) return true;
-        target[key] = value;
-        this._update();
-        return true;
-      }
-    });
   }
 
   setState(state) {
@@ -65,10 +79,10 @@ export class Component extends HTMLElement {
   }
 
   _update() {
-    if (!this._mounted) return;
+    if (!this.#mounted) return;
     this.shadowRoot.innerHTML = `
-      <style>${this.styles()}</style>
-      ${this.render()}
+      <style>${this.styles(this)}</style>
+      ${this.render(this)}
     `;
   }
 
@@ -122,8 +136,8 @@ export class FormComponent extends Component {
         continue;
       }
 
-      if (typeof node.checkValidity === 'function'
-        && typeof node.reportValidity === 'function'
+      if (typeof node.checkValidity === 'function' &&
+        typeof node.reportValidity === 'function'
       ) {
         result.push(node);
       }
@@ -150,5 +164,16 @@ export class FormComponent extends Component {
   }
 }
 
-export const html = (strings, ...values) => String.raw({ raw: strings}, ...values);
-export const css = html;
+export const html = (strings, ...values) => {
+  const processedValues = values.map(value => {
+    if (typeof value === 'object' && value !== null) {
+      const uuid = crypto.randomUUID();
+      store.set(uuid, deepReactiveClone(value));
+      return uuid;
+    }
+    return value;
+  });
+  
+  return String.raw({ raw: strings }, ...processedValues);
+};
+export const css = String.raw;

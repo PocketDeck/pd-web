@@ -1,15 +1,15 @@
 import { Component, html, css } from '/components/base.mjs';
 
 export class Card extends Component {
-  static defaultProps = {
+  static props = {
     width: 96,    // px
     height: 136,  // px
     faceup: true,
     interactive: true,
   };
 
-  styles() {
-    const { width, height, interactive } = this.props;
+  styles({ props }) {
+    const { width, height, interactive } = props;
     return css`
       :host {
         display: inline-block;
@@ -45,8 +45,8 @@ export class Card extends Component {
   // Override in subclasses to draw the face
   renderFace() { return ''; }
 
-  render() {
-    const { faceup } = this.props;
+  render({ props }) {
+    const { faceup } = props;
     return html`
       <div class="card">
         ${faceup ? html`<div class="face">${this.renderFace()}</div>` : ''}

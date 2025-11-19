@@ -1,5 +1,5 @@
 import { Component, html as html_, css as css_ } from '/components/base.mjs';
-import { navigate as nav } from '/router.mjs'
+import { navigate } from '/router.mjs'
 
 export class Page extends Component {
   connectedCallback() {
@@ -38,7 +38,7 @@ export class Page extends Component {
   }
 
   navigate(route) {
-    nav(route, this._socket);
+    navigate(route, this._socket);
   }
 }
 

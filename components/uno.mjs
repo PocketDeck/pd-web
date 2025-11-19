@@ -2,16 +2,16 @@ import { html, css } from '/components/base.mjs';
 import { Card } from '/components/card.mjs';
 
 export class UnoCard extends Card {
-  static defaultProps = {
-    ...Card.defaultProps,
+  static props = {
+    ...Card.props,
     type: 'number',       // number | skip | reverse | draw2 | wild | wild4
     color: 'red',         // red | green | blue | yellow | black (wild)
     value: '5',           // 0-9 for number cards
   };
 
-  styles() {
-    const base = super.styles();
-    const { color } = this.props;
+  styles({ props }) {
+    const base = super.styles(this);
+    const { color } = props;
     // Pick UNO-like color
     const palette = {
       red: '#F44336',
