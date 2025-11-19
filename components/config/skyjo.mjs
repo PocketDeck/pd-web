@@ -1,7 +1,7 @@
 import { Component, html, css } from '/components/base.mjs';
 
 class SkyjoConfig extends Component {
-  static defaultProps = { config: {} }
+  static props = { config: {} }
 
   render() {
     return html``;
