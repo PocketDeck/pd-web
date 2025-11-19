@@ -2,35 +2,37 @@ import { Component, html as html_, css as css_ } from '/components/base.mjs';
 import { navigate } from '/router.mjs'
 
 export class Page extends Component {
+  #socket;
+
   connectedCallback() {
     this._onMessage = (e) => {
       const msg = JSON.parse(e.data);
       this.onMessage(msg);
     };
-    this._socket?.addEventListener('message', this._onMessage);
+    this.#socket?.addEventListener('message', this._onMessage);
     super.connectedCallback();
   }
 
   disconnectedCallback() {
-    if (this._onMessage && this._socket)
-      this._socket.removeEventListener('message', this._onMessage);
+    if (this._onMessage && this.#socket)
+      this.#socket.removeEventListener('message', this._onMessage);
     super.disconnectedCallback();
   }
 
   setSocket(socket) {
-    this._socket = socket;
+    this.#socket = socket;
   }
 
 
   dispatchMessage(type, msg) {
-    if (!this._socket || this._socket.readyState !== WebSocket.OPEN) return;
+    if (!this.#socket || this.#socket.readyState !== WebSocket.OPEN) return;
     const payload = JSON.stringify({
       page: this._pageId,
       type,
       msg,
     });
     console.log(`Sending: ${payload}`);
-    this._socket.send(payload);
+    this.#socket.send(payload);
   }
 
   onMessage(msg) {
@@ -38,7 +40,7 @@ export class Page extends Component {
   }
 
   navigate(route) {
-    navigate(route, this._socket);
+    navigate(route, this.#socket);
   }
 }
 
