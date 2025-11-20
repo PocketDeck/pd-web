@@ -4,7 +4,7 @@ import '/components/uno.mjs';
 import '/components/card-fan.mjs';
 
 export class UnoPage extends Page {
-  static defaultProps = {
+  static props = {
     players: [],
     hand: Array.from({ length: 7 }, (_, i) => ({
       type: i === 0 ? 'wild' : 'number',
@@ -19,8 +19,8 @@ export class UnoPage extends Page {
     `;
   }
 
-  render() {
-    const cardsHtml = (this.props.hand || []).map(card => {
+  render({ props }) {
+    const cardsHtml = (props.hand || []).map(card => {
       const type = card.type ?? 'number';
       const color = card.color ?? (type.includes('wild') ? 'black' : 'red');
       const value = card.value ?? '';
