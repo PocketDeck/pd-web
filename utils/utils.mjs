@@ -1,219 +1,98 @@
-const DRAG_LAYER_ID = '__drag_layer__';
+import { Component } from '/core/base.mjs';
 
-export function getDragLayer() {
-  let dragLayer = document.getElementById(DRAG_LAYER_ID);
-  if (!dragLayer) {
-    dragLayer = document.createElement('div');
-    dragLayer.id = DRAG_LAYER_ID;
-    Object.assign(dragLayer.style, {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      pointerEvents: 'none',
-      zIndex: 9999,
-    });
-    document.body.appendChild(dragLayer);
-  }
-  return dragLayer;
+class DragWrapper extends HTMLElement {
+    constructor() {
+        super();
+        this.style.position = 'fixed';
+        this.style.top = '0';
+        this.style.left = '0';
+        this.style.display = 'none';
+        this.style.pointerEvents = 'none';
+        this.style.zIndex = '10000';
+    }
+}
+customElements.define('drag-wrapper', DragWrapper);
+
+function findDragOverElement(x, y, wrapper) {
+    wrapper.style.visibility = 'hidden';
+    let over = document.elementFromPoint(x, y);
+
+    while (over && over.shadowRoot) {
+        const next = over.shadowRoot.elementFromPoint(x, y);
+        if (next === over) break;
+        over = next;
+    }
+
+    wrapper.style.visibility = 'visible';
+    return over;
 }
 
 export function makeDraggable(element) {
     if (element._draggable) return;
     element._draggable = true;
-    let isDragging = false;
+
+    const wrapper = new DragWrapper();
     let originalParent = element.parentNode;
-    let originalNextSibling = element.nextSibling;
-    let wrapper = null;
+    let originalSibling = element.nextSibling;
+    let dragOverElement = null;
+    let dragging = false;
 
-    const getPoint = (e) => (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    let dragStart = null;
+    const onDragStart = (start) => { dragStart = start; }
+    let dragStop = null;
+    const onDragStop = (stop) => { dragStop = stop; }
+    let dragMove = null;
+    const onDragMove = (move) => { dragMove = move; }
 
-    const createWrapper = () => {
-        const rect = element.getBoundingClientRect();
-        wrapper = document.createElement('div');
-        
-        // Style the wrapper for positioning
-        Object.assign(wrapper.style, {
-            position: 'absolute',
-            width: `${rect.width}px`,
-            height: `${rect.height}px`,
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            zIndex: 10000,
-        });
-        
-        // Keep original element's styles
-        element.style.width = `${rect.width}px`;
-        element.style.height = `${rect.height}px`;
-        
-        // Move element into wrapper
+    const moveTo = (x, y) => {
+        x -= wrapper.offsetWidth / 2;
+        y -= wrapper.offsetHeight / 2;
+        wrapper.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    const onStart = (e) => {
+        if (dragging) return;
         wrapper.appendChild(element);
-        return wrapper;
-    };
+        wrapper.style.display = 'block';
+        dragStart && dragStart(e);
+        dragging = true;
+        moveTo(e.clientX, e.clientY);
+    }
 
-    const onStart = (event) => {
-        console.log('down', event);
-        const point = getPoint(event);
-        
-        // For touch events, always prevent default to prevent scrolling
-        if (event.type === 'touchstart') {
-            event.preventDefault();
-            event.stopPropagation();
-        } else if (event.cancelable) {
-            event.preventDefault();
-        }
-        
-        //isDragging = true;
-        const dragLayer = getDragLayer();
-        
-        // Create and position wrapper
-        wrapper = createWrapper();
-        if (event.type !== 'touchstart') dragLayer.appendChild(wrapper);
-        
-        // Position wrapper at touch point
-        //updateWrapperPosition(point.clientX, point.clientY);
-        
-        // Prevent text selection during drag
-        document.body.style.userSelect = 'none';
-        document.body.style.webkitUserSelect = 'none';
-        
-        // For touch devices, explicitly capture the touch
-        if (event.type === 'touchstart' && event.touches.length > 0) {
-            // Store the touch identifier to track this specific touch
-            element._touchId = event.touches[0].identifier;
-        }
-        
-        return true;
-    };
+    const onMove = (e) => {
+        if (!dragging) return;
+        moveTo(e.clientX, e.clientY);
 
-    const updateWrapperPosition = (x, y) => {
-        if (!wrapper) return;
-        wrapper.style.left = `${x}px`;
-        wrapper.style.top = `${y}px`;
-    };
+        const over = findDragOverElement(e.clientX, e.clientY, wrapper);
+        if (over !== dragOverElement) {
+            dragOverElement?.dispatchEvent(new CustomEvent('dragleave', { bubbles: true }));
+            dragOverElement = over;
+            dragOverElement?.dispatchEvent(new CustomEvent('dragenter', { bubbles: true }));
+        }
+        dragMove && dragMove(e);
+    }
 
-    const onMove = (event) => {
-        console.log('move', event);
-        if (!isDragging) return;
-        
-        // For touch events, make sure it's the same touch we started with
-        if (event.type === 'touchmove') {
-            if (element._touchId === undefined) return;
-            
-            // Find our touch in the list of changed touches
-            const touch = Array.from(event.changedTouches).find(
-                t => t.identifier === element._touchId
-            );
-            
-            if (!touch) return;
-            
-            event.preventDefault();
-            event.stopPropagation();
-            
-            updateWrapperPosition(touch.clientX, touch.clientY);
-        } else {
-            // Handle mouse events
-            if (event.cancelable) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            
-            const point = getPoint(event);
-            updateWrapperPosition(point.clientX, point.clientY);
-        }
-        
-        return false;
-    };
+    const onEnd = (e) => {
+        if (!dragging) return;
+        moveWithAnimation(element, originalParent, originalSibling);
+        wrapper.style.display = 'none';
+        dragStop && dragStop(e);
+        dragging = false;
+    }
 
-    const cleanup = () => {
-        if (!wrapper) return;
-        
-        // Re-enable text selection
-        document.body.style.userSelect = '';
-        document.body.style.webkitUserSelect = '';
-        
-        // Move element back to original position in DOM
-        if (originalParent) {
-            if (element.parentNode === wrapper) {
-                originalParent.insertBefore(element, originalNextSibling);
-            }
-        }
-        
-        // Clean up wrapper
-        if (wrapper.parentNode) {
-            wrapper.parentNode.removeChild(wrapper);
-        }
-        
-        // Reset element styles
-        element.style.removeProperty('width');
-        element.style.removeProperty('height');
-        
-        wrapper = null;
-    };
+    element.addEventListener('pointerdown', onStart);
+    element.addEventListener('pointerup', onEnd);
+    element.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onEnd);
+    document.addEventListener('pointermove', onMove);
 
-    const onEnd = (event) => {
-        if (!isDragging) return;
-        
-        // For touch events, make sure it's the same touch we started with
-        if (event && event.type.startsWith('touch')) {
-            if (element._touchId === undefined) return;
-            
-            // Find our touch in the list of changed touches
-            const touch = Array.from(event.changedTouches || []).find(
-                t => t.identifier === element._touchId
-            );
-            
-            if (!touch && event.type !== 'touchend') return;
-        }
-        
-        console.log('up');
-        isDragging = false;
-        
-        // Clean up touch identifier
-        if (element._touchId !== undefined) {
-            delete element._touchId;
-        }
-        
-        // Move element back to original position
-        if (element.getAnimations) { 
-            element.getAnimations().forEach(a => a.cancel()); 
-        }
-        
-        // Animate back to original position if needed
-        if (originalParent) {
-            const moveBack = moveWithAnimation(element, originalParent, originalNextSibling);
-            if (moveBack) {
-                moveBack.onfinish = cleanup;
-                return;
-            }
-        }
-        
-        // If no animation, just clean up
-        cleanup();
-    };
+    document.body.appendChild(wrapper);
 
-    // Clean up function to remove all event listeners
-    const removeEventListeners = () => {
-        element.removeEventListener('mousedown', onStart);
-        element.removeEventListener('touchstart', onStart);
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('mouseup', onEnd);
-        document.removeEventListener('touchend', onEnd);
-        document.removeEventListener('touchcancel', onEnd);
-    };
-
-    // Store cleanup function on the element
-    element._cleanupDraggable = removeEventListeners;
-
-    element.addEventListener('mousedown', onStart);
-    element.addEventListener('touchstart', onStart, { passive: false });
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('mouseup', onEnd);
-    document.addEventListener('touchend', onEnd);
-    document.addEventListener('touchcancel', onEnd);
+    return {
+        onDragStart,
+        onDragStop,
+        onDragMove,
+    }
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {

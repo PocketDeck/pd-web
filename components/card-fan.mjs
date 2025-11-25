@@ -107,7 +107,9 @@ export class CardFan extends Component {
     cards.forEach((el, i) => {
       const wrapped = this.#wrapCard(el, n, i);
       this._fan.appendChild(wrapped);
-      makeDraggable(wrapped);
+      const { onDragStart, onDragStop } = makeDraggable(wrapped);
+      onDragStart((e) => { console.log('Start', e); });
+      onDragStop((e) => { console.log('Stop', e); });
     });
   }
 
