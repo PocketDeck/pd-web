@@ -96,20 +96,38 @@ export function makeDraggable(element) {
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {
-    const { animate = true, duration = 160, easing = 'ease' } = options;
+    const { animate = true, duration = 260, easing = 'ease-out' } = options;
+
     const start = element.getBoundingClientRect();
     newParent.insertBefore(element, nextSibling);
-    if (!animate) return null;
     const end = element.getBoundingClientRect();
+
+    if (!animate) return;
+    
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'absolute';
+    wrapper.style.top = `${end.top}px`;
+    wrapper.style.left = `${end.left}px`;
+    wrapper.appendChild(element);
+    document.body.appendChild(wrapper);
+    
     const delta = {
-        x: end.left - start.left,
-        y: end.top - start.top,
+        x: start.left - end.left,
+        y: start.top - end.top,
     };
-    return element.animate([
+    
+    const animation = wrapper.animate([
         { transform: `translate(${delta.x}px, ${delta.y}px)` },
         { transform: 'translate(0, 0)' },
     ], {
         duration,
         easing,
     });
+    
+    animation.onfinish = () => {
+        newParent.insertBefore(element, nextSibling);
+        wrapper.remove();
+    };
+    
+    return animation;
 }
