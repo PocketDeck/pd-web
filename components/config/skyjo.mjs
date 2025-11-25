@@ -1,4 +1,4 @@
-import { Component, html, css } from '/components/base.mjs';
+import { Component, html, css } from '/core/base.mjs';
 
 class SkyjoConfig extends Component {
   static props = { config: {} }

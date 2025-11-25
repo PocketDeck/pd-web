@@ -1,5 +1,5 @@
-import { Page, html, css } from '/pages/base.mjs';
-import { basicStyle } from '/styles.mjs';
+import { Page, html, css } from '/core/base.mjs';
+import { basicStyle } from '/styles/styles.mjs';
 
 class LobbyPage extends Page {
   static props = {

@@ -1,5 +1,5 @@
-import { Page, html, css } from '/pages/base.mjs';
-import { basicStyle } from '/styles.mjs';
+import { Page, html, css } from '/core/base.mjs';
+import { basicStyle } from '/styles/styles.mjs';
 import '/components/uno.mjs';
 import '/components/card-fan.mjs';
 
@@ -20,7 +20,7 @@ export class UnoPage extends Page {
   }
 
   render({ props }) {
-    const cardsHtml = (props.hand || []).map(card => {
+    const cardsHtml = (props.hand ?? []).map(card => {
       const type = card.type ?? 'number';
       const color = card.color ?? (type.includes('wild') ? 'black' : 'red');
       const value = card.value ?? '';

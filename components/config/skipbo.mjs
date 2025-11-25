@@ -1,4 +1,4 @@
-import { Component } from '/components/base.mjs';
+import { Component } from '/core/base.mjs';
 
 class SkipboConfig extends Component {
   static props = { config: {} }

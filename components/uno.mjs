@@ -1,4 +1,4 @@
-import { html, css } from '/components/base.mjs';
+import { html, css } from '/core/base.mjs';
 import { Card } from '/components/card.mjs';
 
 export class UnoCard extends Card {

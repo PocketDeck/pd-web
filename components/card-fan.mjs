@@ -1,4 +1,4 @@
-import { Component, html, css } from '/components/base.mjs';
+import { Component, html, css } from '/core/base.mjs';
 import { makeDraggable } from '/utils/utils.mjs';
 
 export class CardFan extends Component {

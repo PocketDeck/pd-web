@@ -1,4 +1,4 @@
-import { store } from '/store.mjs'
+import { store } from '/core/store.mjs'
 
 function deepReactive(target, callback, seen = new WeakMap()) {
   if (typeof target !== 'object' || target === null) return target;
@@ -173,7 +173,52 @@ export const html = (strings, ...values) => {
     }
     return value;
   });
-  
+
   return String.raw({ raw: strings }, ...processedValues);
 };
 export const css = String.raw;
+
+
+import { navigate } from '/core/router.mjs'
+export class Page extends Component {
+  #socket;
+
+  connectedCallback() {
+    this.#socket?.addEventListener('message', this.#onMessage);
+    super.connectedCallback();
+  }
+
+  disconnectedCallback() {
+    if (this._onMessage && this.#socket)
+      this.#socket.removeEventListener('message', this.#onMessage);
+    super.disconnectedCallback();
+  }
+
+  setSocket(socket) {
+    this.#socket = socket;
+  }
+
+  dispatchMessage(type, msg) {
+    if (!this.#socket || this.#socket.readyState !== WebSocket.OPEN) return;
+    const payload = JSON.stringify({
+      page: this._pageId,
+      type,
+      msg,
+    });
+    console.log(`Sending: ${payload}`);
+    this.#socket.send(payload);
+  }
+
+  #onMessage(event) {
+    const payload = JSON.parse(event.data);
+    if (payload.type === 'navigate') {
+      navigate(payload.msg.page, this.#socket);
+    } else {
+      this.onMessage(msg);
+    }
+  }
+
+  onMessage(msg) {
+    console.log(`Recieved: ${msg}`);
+  }
+}

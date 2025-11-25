@@ -1,4 +1,4 @@
-import { getSocket } from '/socket.mjs';
+import { getSocket } from '/core/socket.mjs';
 
 function parseRoute(route = '/') {
   const url = new URL(route, location.origin);

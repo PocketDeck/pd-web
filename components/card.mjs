@@ -1,4 +1,4 @@
-import { Component, html, css } from '/components/base.mjs';
+import { Component, html, css } from '/core/base.mjs';
 
 export class Card extends Component {
   static props = {

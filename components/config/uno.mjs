@@ -1,4 +1,4 @@
-import { FormComponent, html, css } from '/components/base.mjs';
+import { FormComponent, html, css } from '/core/base.mjs';
 
 class UNOConfig extends FormComponent {
   static props = {
