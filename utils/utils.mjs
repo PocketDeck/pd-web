@@ -1,18 +1,3 @@
-import { Component } from '/core/base.mjs';
-
-class DragWrapper extends HTMLElement {
-    constructor() {
-        super();
-        this.style.position = 'fixed';
-        this.style.top = '0';
-        this.style.left = '0';
-        this.style.display = 'none';
-        this.style.pointerEvents = 'none';
-        this.style.zIndex = '10000';
-    }
-}
-customElements.define('drag-wrapper', DragWrapper);
-
 function findDragOverElement(x, y, wrapper) {
     wrapper.style.visibility = 'hidden';
     let over = document.elementFromPoint(x, y);
@@ -31,7 +16,7 @@ export function makeDraggable(element) {
     if (element._draggable) return;
     element._draggable = true;
 
-    const wrapper = new DragWrapper();
+    let wrapper = null;
     let originalParent = element.parentNode;
     let originalSibling = element.nextSibling;
     let dragOverElement = null;
@@ -52,15 +37,23 @@ export function makeDraggable(element) {
 
     const onStart = (e) => {
         if (dragging) return;
-        wrapper.appendChild(element);
+        // TODO: sort this out
+        wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '0';
+        wrapper.style.left = '0';
+        wrapper.style.pointerEvents = 'none';
+        wrapper.style.zIndex = '10000';
         wrapper.style.display = 'block';
-        dragStart && dragStart(e);
+        wrapper.appendChild(element);
         dragging = true;
         moveTo(e.clientX, e.clientY);
+        document.body.appendChild(wrapper);
+        dragStart && dragStart(e);
     }
 
     const onMove = (e) => {
-        if (!dragging) return;
+        if (!dragging || !wrapper) return;
         moveTo(e.clientX, e.clientY);
 
         const over = findDragOverElement(e.clientX, e.clientY, wrapper);
@@ -73,11 +66,11 @@ export function makeDraggable(element) {
     }
 
     const onEnd = (e) => {
-        if (!dragging) return;
+        if (!dragging || !wrapper) return;
         moveWithAnimation(element, originalParent, originalSibling);
-        wrapper.style.display = 'none';
-        dragStop && dragStop(e);
+        wrapper.remove();
         dragging = false;
+        dragStop && dragStop(e);
     }
 
     element.addEventListener('pointerdown', onStart);
@@ -85,8 +78,6 @@ export function makeDraggable(element) {
     element.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onEnd);
     document.addEventListener('pointermove', onMove);
-
-    document.body.appendChild(wrapper);
 
     return {
         onDragStart,
@@ -96,7 +87,7 @@ export function makeDraggable(element) {
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {
-    const { animate = true, duration = 260, easing = 'ease-out' } = options;
+    const { animate = true, duration = 660, easing = 'ease-out' } = options;
 
     const start = element.getBoundingClientRect();
     newParent.insertBefore(element, nextSibling);
