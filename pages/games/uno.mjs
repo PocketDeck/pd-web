@@ -1,6 +1,6 @@
 import { Page, html, css } from '/core/base.mjs';
 import { basicStyle } from '/styles/styles.mjs';
-import '/components/uno.mjs';
+import '/components/cards/uno.mjs';
 import '/components/card-fan.mjs';
 
 export class UnoPage extends Page {
