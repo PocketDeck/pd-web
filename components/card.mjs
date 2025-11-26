@@ -12,7 +12,7 @@ export class Card extends Component {
     const { width, height, interactive } = props;
     return css`
       :host {
-        display: inline-block;
+        display: block;
         --card-w: ${width}px;
         --card-h: ${height}px;
         contain: content;
