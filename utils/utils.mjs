@@ -37,18 +37,19 @@ export function makeDraggable(element) {
 
     const onStart = (e) => {
         if (dragging) return;
-        // TODO: sort this out
+        if (element._dragAnimation && element._dragAnimation.playState === 'running') {
+            element._dragAnimation.cancel();
+        }
         wrapper = document.createElement('div');
         wrapper.style.position = 'fixed';
         wrapper.style.top = '0';
         wrapper.style.left = '0';
         wrapper.style.pointerEvents = 'none';
         wrapper.style.zIndex = '10000';
-        wrapper.style.display = 'block';
-        wrapper.appendChild(element);
-        dragging = true;
-        moveTo(e.clientX, e.clientY);
         document.body.appendChild(wrapper);
+        wrapper.appendChild(element);
+        moveTo(e.clientX, e.clientY);
+        dragging = true;
         dragStart && dragStart(e);
     }
 
@@ -67,7 +68,7 @@ export function makeDraggable(element) {
 
     const onEnd = (e) => {
         if (!dragging || !wrapper) return;
-        moveWithAnimation(element, originalParent, originalSibling);
+        element._dragAnimation = moveWithAnimation(element, originalParent, originalSibling);
         wrapper.remove();
         dragging = false;
         dragStop && dragStop(e);
@@ -87,7 +88,7 @@ export function makeDraggable(element) {
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {
-    const { animate = true, duration = 660, easing = 'ease-out' } = options;
+    const { animate = true, duration = 260, easing = 'ease-out' } = options;
 
     const start = element.getBoundingClientRect();
     newParent.insertBefore(element, nextSibling);
@@ -115,6 +116,10 @@ export function moveWithAnimation(element, newParent, nextSibling, options = {})
         easing,
     });
     
+    animation.oncancel = () => {
+        wrapper.remove();
+    };
+
     animation.onfinish = () => {
         newParent.insertBefore(element, nextSibling);
         wrapper.remove();
