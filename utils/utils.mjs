@@ -57,11 +57,12 @@ export function makeDraggable(element) {
         if (!dragging || !wrapper) return;
         moveTo(e.clientX, e.clientY);
 
-        const over = findDragOverElement(e.clientX, e.clientY, wrapper);
-        if (over !== dragOverElement) {
-            dragOverElement?.dispatchEvent(new CustomEvent('dragleave', { bubbles: true }));
-            dragOverElement = over;
-            dragOverElement?.dispatchEvent(new CustomEvent('dragenter', { bubbles: true }));
+        const oldDragOverElement = dragOverElement;
+        const newDragOverElement = findDragOverElement(e.clientX, e.clientY, wrapper);
+        if (newDragOverElement !== dragOverElement) {
+            dragOverElement = newDragOverElement;
+            oldDragOverElement?.dispatchEvent(new CustomEvent('dragleave', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
+            newDragOverElement?.dispatchEvent(new CustomEvent('dragenter', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
         }
         dragMove && dragMove(e);
     }
@@ -71,6 +72,7 @@ export function makeDraggable(element) {
         element._dragAnimation = moveWithAnimation(element, originalParent, originalSibling);
         wrapper.remove();
         dragging = false;
+        dragOverElement = null;
         dragStop && dragStop(e);
     }
 
@@ -126,4 +128,16 @@ export function moveWithAnimation(element, newParent, nextSibling, options = {})
     };
     
     return animation;
+}
+
+export function containsDeep(element, target) {
+    if (element === target) return true;
+
+    for (const node of element.children) {
+        if (containsDeep(node, target) ||
+            (node.shadowRoot && containsDeep(node.shadowRoot, target))) {
+            return true;
+        }
+    }
+    return false;
 }
