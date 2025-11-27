@@ -1,5 +1,5 @@
 import { Component, html, css } from '/core/base.mjs';
-import { makeDraggable, containsDeep } from '/utils/utils.mjs';
+import { makeDraggable, containsDeep } from '/core/utils.mjs';
 
 export class CardFan extends Component {
   styles() {
