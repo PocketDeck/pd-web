@@ -56,7 +56,10 @@ export class Component extends HTMLElement {
   connectedCallback() {
     this.#mounted = true;
     this._update();
-    this.mounted();
+    this.mounted({
+      on: this.on.bind(this),
+      dispatchEvent: this.dispatchEvent.bind(this),
+    });
   }
 
   disconnectedCallback() {
@@ -91,12 +94,13 @@ export class Component extends HTMLElement {
   mounted() {}
   unmounted() {}
 
-  addShadowListener(type, listener, options) {
+  #listeners = new Map();
+  on(type, listener, options) {
+    if (this.#listeners.has(type)) {
+      this.shadowRoot.removeEventListener(type, this.#listeners.get(type));
+    }
     this.shadowRoot.addEventListener(type, listener, options);
-  }
-
-  removeShadowListener(type, listener, options) {
-    this.shadowRoot.removeEventListener(type, listener, options);
+    this.#listeners.set(type, listener);
   }
 
   static registerTag(tag) {
@@ -112,8 +116,8 @@ export class FormComponent extends Component {
     super();
     this._internals = this.attachInternals();
 
-    this.addShadowListener('input', () => this.checkValidity());
-    this.addShadowListener('change', () => this.checkValidity());
+    this.on('input', () => this.checkValidity());
+    this.on('change', () => this.checkValidity());
   }
 
   formAssociatedCallback() {
@@ -209,16 +213,18 @@ export class Page extends Component {
     this.#socket.send(payload);
   }
 
+  #messageListeners = new Map();
+
   #onMessage(event) {
     const payload = JSON.parse(event.data);
     if (payload.type === 'navigate') {
       navigate(payload.msg.page, this.#socket);
     } else {
-      this.onMessage(msg);
+      this.#messageListeners.get(payload.type)?.(payload.msg);
     }
   }
 
-  onMessage(msg) {
-    console.log(`Recieved: ${msg}`);
+  onMessage(type, listener) {
+    this.#messageListeners.set(type, listener);
   }
 }

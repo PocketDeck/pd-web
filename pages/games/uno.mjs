@@ -32,8 +32,8 @@ export class UnoPage extends Page {
     `;
   }
 
-  mounted() {
-    this.addShadowListener('card-click', (e) => {
+  mounted({ on }) {
+    on('card-click', (e) => {
         console.log('Card clicked:', e.detail.index);
     });
   }

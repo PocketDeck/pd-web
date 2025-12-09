@@ -49,21 +49,21 @@ class LoginPage extends Page {
     return header + form;
   }
 
-  mounted() {
-    this.addShadowListener('click', (e) => {
+  mounted({ on, dispatchMessage }) {
+    on('click', (e) => {
       if (e.target.closest('.tab')) {
         this.silentProps.tabChange = true;
         this.props.mode = e.target.dataset.tabValue;
         this.silentProps.tabChange = false;
       }
     });
-    this.addShadowListener('change', (e) => {
+    on('change', (e) => {
       if (e.target.closest('input[name="Name"]'))
         this.silentProps.name = e.target.value;
       else if (e.target.closest('input[name="Room ID"]'))
         this.silentProps.room = e.target.value;
     });
-    this.addShadowListener('submit', (e) => {
+    on('submit', (e) => {
       e.preventDefault();
 
       let msg = { name: this.props.name };
@@ -73,15 +73,15 @@ class LoginPage extends Page {
         msg.game = this.props.game;
         msg.config = this.props.gameConfig;
       }
-      this.dispatchMessage(this.props.mode, msg);
+      dispatchMessage(this.props.mode, msg);
 
       // TODO: remove
       this.navigate('lobby');
     });
-    this.addShadowListener('game-select', (e) => {
+    on('game-select', (e) => {
       this.silentProps.game = e.detail.game;
     });
-    this.addShadowListener('config-change', (e) => {
+    on('config-change', (e) => {
       this.silentProps.gameConfig = e.detail.config;
     });
   }

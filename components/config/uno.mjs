@@ -73,14 +73,14 @@ class UNOConfig extends FormComponent {
     `;
   }
 
-  mounted() {
-    this.addShadowListener('change', (e) => {
+  mounted({ on, dispatchEvent }) {
+    on('change', (e) => {
       const input = e.target.closest('input');
       if (!input || !input.name) return;
 
       this.silentProps.config[input.name] = input.checked;
       const event = new CustomEvent('config-change', { bubbles: true, detail: { config: this.props.config } });
-      this.dispatchEvent(event);
+      dispatchEvent(event);
     });
   }
 }

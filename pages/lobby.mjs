@@ -30,8 +30,8 @@ class LobbyPage extends Page {
     `;
   }
 
-  mounted() {
-    this.addShadowListener('click', (e) => {
+  mounted({ on, onMessage, dispatchMessage }) {
+    on('click', (e) => {
       if (e.target.closest('.ready-button')) {
         this.props.ready = !this.props.ready;
 
@@ -40,24 +40,22 @@ class LobbyPage extends Page {
       }
 
       if (e.target.closest('.leave-button')) {
-        this.dispatchMessage('leave');
+        dispatchMessage('leave');
 
         // TODO: remove
         this.navigate('login');
       }
     });
 
-    this.dispatchMessage('status');
-  }
+    dispatchMessage('status');
 
-  onMessage(msg) {
-    if (msg.type === 'status') {
+    onMessage('status', (msg) => {
       this.setState({
         players: msg.players,
         ready: msg.ready,
         lobbyId: msg.lobbyId,
       });
-    }
+    });
   }
 
   styles({ props }) {

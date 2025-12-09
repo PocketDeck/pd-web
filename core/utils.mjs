@@ -17,8 +17,8 @@ export function makeDraggable(element) {
     element._draggable = true;
 
     let wrapper = null;
-    let originalParent = element.parentNode;
-    let originalSibling = element.nextSibling;
+    let originalParent = null;
+    let originalSibling = null;
     let dragOverElement = null;
     let dragging = false;
 
@@ -40,6 +40,9 @@ export function makeDraggable(element) {
         if (element._dragAnimation && element._dragAnimation.playState === 'running') {
             element._dragAnimation.cancel();
         }
+        originalParent = element.parentNode;
+        originalSibling = element.nextSibling;
+
         wrapper = document.createElement('div');
         wrapper.style.position = 'fixed';
         wrapper.style.top = '0';
@@ -50,7 +53,7 @@ export function makeDraggable(element) {
         wrapper.appendChild(element);
         moveTo(e.clientX, e.clientY);
         dragging = true;
-        dragStart && dragStart(e);
+        dragStart?.(e);
     }
 
     const onMove = (e) => {
@@ -64,16 +67,15 @@ export function makeDraggable(element) {
             oldDragOverElement?.dispatchEvent(new CustomEvent('dragleave', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
             newDragOverElement?.dispatchEvent(new CustomEvent('dragenter', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
         }
-        dragMove && dragMove(e);
+        dragMove?.(e);
     }
 
     const onEnd = (e) => {
         if (!dragging || !wrapper) return;
-        element._dragAnimation = moveWithAnimation(element, originalParent, originalSibling);
+        element._dragAnimation = moveWithAnimation(element, originalParent, originalSibling, { endCallback: () => dragStop?.(e) });
         wrapper.remove();
         dragging = false;
         dragOverElement = null;
-        dragStop && dragStop(e);
     }
 
     element.addEventListener('pointerdown', onStart);
@@ -90,7 +92,7 @@ export function makeDraggable(element) {
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {
-    const { animate = true, duration = 260, easing = 'ease-out' } = options;
+    const { animate = true, duration = 260, easing = 'ease-out', endCallback = null } = options;
 
     const start = element.getBoundingClientRect();
     newParent.insertBefore(element, nextSibling);
@@ -120,11 +122,13 @@ export function moveWithAnimation(element, newParent, nextSibling, options = {})
     
     animation.oncancel = () => {
         wrapper.remove();
+        endCallback?.();
     };
 
     animation.onfinish = () => {
         newParent.insertBefore(element, nextSibling);
         wrapper.remove();
+        endCallback?.();
     };
     
     return animation;

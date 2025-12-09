@@ -40,7 +40,7 @@ export class CardFan extends Component {
         border: 2px dashed #999;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.1);
-        opacity: 0.8;
+        opacity: 0.5;
       }
 
       /* Wrapper: rotated and translated to create the fan */
@@ -53,14 +53,11 @@ export class CardFan extends Component {
         --angle: 0deg;
         transform: translateY(calc(-1 * var(--raise))) rotate(var(--angle)) translateY(var(--raise));
         z-index: 0;
+        transition: transform 160ms ease;
       }
 
       #placeholders {
         opacity: 0;
-      }
-
-      #fan .card-wrapper {
-        opacity: 1;
       }
 
       /* The actual card element fills wrapper */
@@ -78,7 +75,7 @@ export class CardFan extends Component {
         pointer-events: auto;
       }
 
-      #fan .card-wrapper:hover > * {
+      #fan .card-wrapper:hover:not(.card-placeholder) > * {
         transform:
         rotate(calc(-1 * var(--angle)))
         translateY(var(--hover-raise))
@@ -88,38 +85,30 @@ export class CardFan extends Component {
     `;
   }
 
-  mounted() {
+  mounted({ on }) {
     this._slot = this.shadowRoot.querySelector('slot');
     this._fan = this.shadowRoot.querySelector('#fan');
     this._placeholders = this.shadowRoot.querySelector('#placeholders');
     
-    this.addShadowListener('slotchange', this.#layout.bind(this));
+    on('slotchange', this.#layout.bind(this));
     queueMicrotask(this.#layout.bind(this));
 
-    this.addShadowListener('card-click', (e) => {
+    on('card-click', (e) => {
       e.detail.index = e.detail.card.closest('.card-wrapper').dataset.index;
     });
+    this.#layout();
   }
 
-  #wrapCard(card, n, i) {
+  #wrapCard(card) {
     const wrapper = document.createElement('div');
-    const curvatureDeg = 70; // fan curvature
-    const center = (n - 1) / 2;
-    const curveDeg = curvatureDeg * ((i - center) / n);
-    const curve = `${curveDeg}deg`;
-
     wrapper.classList.add('card-wrapper');
-    wrapper.dataset.index = i;
-    wrapper.style.setProperty('--angle', curve);
-    wrapper.style.zIndex = i;
     wrapper.appendChild(card);
     return wrapper;
   }
 
-  #createPlaceholder(card, n, i) {
-    const placeholder = this.#wrapCard(card.cloneNode(true), n, i);
+  #createPlaceholder(card) {
+    const placeholder = this.#wrapCard(card.cloneNode(true));
     placeholder.classList.add('card-placeholder');
-    placeholder.style.opacity = '0.5';
     return placeholder;
   }
 
@@ -130,33 +119,51 @@ export class CardFan extends Component {
     
     // Create invisible cards for all cards except the one being dragged
     for (let i = 0; i < n; i++) {
-      const placeholder = this.#createPlaceholder(card, n, i);
+      const placeholder = this.#createPlaceholder(card);
+      placeholder.dataset.index = i;
       this._placeholders.appendChild(placeholder);
     }
+
+    this.#layout2(this._placeholders);
   }
 
+  placeholderCopy = null;
+
   #handleDragStart(e, index) {
+    console.log('CardFan drag start');
     this.#updatePlaceholders(this._slot.assignedElements()[index]);
     this._placeholders.classList.add('dragging');
 
     const placeholders = this._placeholders.querySelectorAll('.card-wrapper');
-    let copy = null;
     placeholders.forEach((card, i) => {
       card.addEventListener('dragenter', (e) => {
+        console.log('Card drag enter');
         if (containsDeep(card, e.detail.old)) return true;
-        copy = card.cloneNode(true);
-        this._fan.insertBefore(copy, this._fan.children[i]);
+        if (this.placeholderCopy) this.placeholderCopy.remove();
+        this.placeholderCopy = card.cloneNode(true);
+        this.placeholderCopy.style.zIndex = 0;
+        this._fan.insertBefore(this.placeholderCopy, this._fan.children[i]);
+        this.#layout2(this._fan);
       });
-      card.addEventListener('dragleave', (e) => {
-        if (containsDeep(card, e.detail.new)) return true;
-        copy.remove();
-        copy = null;
+      card.addEventListener('dragleave', () => {
+        console.log('Card drag leave');
+        if (this.placeholderCopy) {
+          this.placeholderCopy.remove();
+          this.placeholderCopy = null;
+          this.#layout2(this._fan);
+        }
       });
     });
   }
 
-  #handleDragStop(e) {
+  #handleDragStop() {
+    console.log('CardFan drag stop');
+    if (this.placeholderCopy) {
+      this.placeholderCopy.remove();
+      this.placeholderCopy = null;
+    }
     this._placeholders.classList.remove('dragging');
+    this.#layout2(this._fan);
   }
 
   #layout() {
@@ -169,12 +176,32 @@ export class CardFan extends Component {
 
     cards.forEach((el, i) => {
       el = el.cloneNode(true);
-      const wrapped = this.#wrapCard(el, n, i);
+      const wrapped = this.#wrapCard(el);
+      wrapped.dataset.index = i;
       this._fan.appendChild(wrapped);
       
       const { onDragStart, onDragStop } = makeDraggable(wrapped);
       onDragStart((e) => this.#handleDragStart(e, i));
       onDragStop((e) => this.#handleDragStop(e));
+    });
+
+    this.#layout2(this._fan);
+  }
+
+  #layout2(container) {
+    const n = container.children.length;
+    const curvatureDeg = 70; // fan curvature
+    
+    const cards = Array.from(container.children);
+    
+    // convert htmlcollection to array
+    cards.forEach((card, i) => {
+      const center = (n - 1) / 2;
+      const curveDeg = curvatureDeg * ((i - center) / n);
+      const curve = `${curveDeg}deg`;
+
+      card.style.setProperty('--angle', curve);
+      card.style.zIndex = i;
     });
   }
 

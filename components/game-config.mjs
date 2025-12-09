@@ -69,8 +69,8 @@ class GameConfig extends FormComponent {
     `;
   }
 
-  mounted() {
-    this.addShadowListener('change', (e) => {
+  mounted({ on, dispatchEvent }) {
+    on('change', (e) => {
       if (e.target.closest('#gameSelect')) {
         const defaultConfig = () => structuredClone(this.constructor.props.config);
 
@@ -84,13 +84,13 @@ class GameConfig extends FormComponent {
 
         const configEvent = new CustomEvent('config-change', { bubbles: true, detail: { config: structuredClone(this.props.config) } });
         const selectEvent = new CustomEvent('game-select', { bubbles: true, detail: { game: this.props.game } });
-        this.dispatchEvent(configEvent);
-        this.dispatchEvent(selectEvent);
+        dispatchEvent(configEvent);
+        dispatchEvent(selectEvent);
       }
     });
-    this.addShadowListener('config-change', (e) => {
+    on('config-change', (e) => {
       this.silentProps.config = structuredClone(e.detail.config);
-      this.dispatchEvent(new e.constructor(e.type, e))
+      dispatchEvent(new e.constructor(e.type, e))
     });
   }
 }
