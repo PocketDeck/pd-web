@@ -64,8 +64,17 @@ export function makeDraggable(element) {
         const newDragOverElement = findDragOverElement(e.clientX, e.clientY, wrapper);
         if (newDragOverElement !== dragOverElement) {
             dragOverElement = newDragOverElement;
-            oldDragOverElement?.dispatchEvent(new CustomEvent('dragleave', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
-            newDragOverElement?.dispatchEvent(new CustomEvent('dragenter', { bubbles: true, composed: true, detail: { old: oldDragOverElement, new: newDragOverElement } }));
+
+            oldDragOverElement?.dispatchEvent(new CustomEvent('dragleave', {
+                bubbles: true,
+                composed: true,
+                detail: { old: oldDragOverElement, new: newDragOverElement }
+            }));
+            newDragOverElement?.dispatchEvent(new CustomEvent('dragenter', {
+                bubbles: true,
+                composed: true,
+                detail: { old: oldDragOverElement, new: newDragOverElement }
+            }));
         }
         dragMove?.(e);
     }
