@@ -14,10 +14,10 @@ export class UnoCard extends Card {
     const { color } = props;
     // Pick UNO-like color
     const palette = {
-      red: "#F44336",
-      green: "#4CAF50",
-      blue: "#2196F3",
-      yellow: "#FFB300",
+      red: "#f44336",
+      green: "#4caf50",
+      blue: "#2196f3",
+      yellow: "#ffb300",
       black: "#111",
     };
     const c = palette[color] || palette.red;
@@ -89,16 +89,16 @@ export class UnoCard extends Card {
           border-radius: 6px;
         }
         .pip.red {
-          background: #f44336;
+          background: ${palette.red};
         }
         .pip.green {
-          background: #4caf50;
+          background: ${palette.green};
         }
         .pip.blue {
-          background: #2196f3;
+          background: ${palette.blue};
         }
         .pip.yellow {
-          background: #ffb300;
+          background: ${palette.yellow};
         }
       `
     );
