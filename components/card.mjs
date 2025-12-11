@@ -1,9 +1,9 @@
-import { Component, html, css } from '/core/base.mjs';
+import { Component, html, css } from "/core/base.mjs";
 
 export class Card extends Component {
   static props = {
-    width: 96,    // px
-    height: 136,  // px
+    width: 96, // px
+    height: 136, // px
     faceup: true,
     interactive: true,
   };
@@ -25,7 +25,9 @@ export class Card extends Component {
         height: var(--card-h);
         position: relative;
         transition: transform 120ms ease;
-        ${interactive === 'false' || interactive === false ? 'cursor: default;' : 'cursor: pointer;'}
+        ${interactive === "false" || interactive === false
+          ? "cursor: default;"
+          : "cursor: pointer;"}
         will-change: transform;
         user-select: none;
         -webkit-user-select: none;
@@ -43,26 +45,27 @@ export class Card extends Component {
   }
 
   // Override in subclasses to draw the face
-  renderFace() { return ''; }
+  renderFace() {
+    return "";
+  }
 
   render({ props }) {
     const { faceup } = props;
     return html`
       <div class="card">
-        ${faceup ? html`<div class="face">${this.renderFace()}</div>` : ''}
+        ${faceup ? html`<div class="face">${this.renderFace()}</div>` : ""}
       </div>
     `;
   }
 
   mounted({ on, dispatchEvent }) {
-    on('click', () => {
-      const event = new CustomEvent('card-click', {
+    on("click", () => {
+      const event = new CustomEvent("card-click", {
         bubbles: true,
         composed: true,
-        detail: { card: this }
+        detail: { card: this },
       });
       dispatchEvent(event);
     });
   }
 }
-

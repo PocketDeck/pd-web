@@ -1,7 +1,7 @@
-import { Component, html, css } from '/core/base.mjs';
+import { Component, html, css } from "/core/base.mjs";
 
 class SkyjoConfig extends Component {
-  static props = { config: {} }
+  static props = { config: {} };
 
   render() {
     return html``;
@@ -12,4 +12,4 @@ class SkyjoConfig extends Component {
   }
 }
 
-SkyjoConfig.registerTag('config-skyjo');
+SkyjoConfig.registerTag("config-skyjo");

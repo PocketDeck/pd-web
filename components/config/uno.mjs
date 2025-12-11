@@ -1,4 +1,4 @@
-import { FormComponent, html, css } from '/core/base.mjs';
+import { FormComponent, html, css } from "/core/base.mjs";
 
 class UNOConfig extends FormComponent {
   static props = {
@@ -6,28 +6,29 @@ class UNOConfig extends FormComponent {
       play_after_draw: true,
       aggregate_draws: true,
       black_on_black: true,
-    }
-  }
+    },
+  };
 
   render() {
-    const nameAndCheckedAttr = (name) => `name="${name}" ${this.props.config[name] ? 'checked' : ''}`;
+    const nameAndCheckedAttr = (name) =>
+      `name="${name}" ${this.props.config[name] ? "checked" : ""}`;
 
     return html`
       <label>
-        <input type="checkbox" ${nameAndCheckedAttr("play_after_draw")}>
+        <input type="checkbox" ${nameAndCheckedAttr("play_after_draw")} />
         Play after draw
       </label>
-      <br>
+      <br />
       <label>
-        <input type="checkbox" ${nameAndCheckedAttr("aggregate_draws")}>
+        <input type="checkbox" ${nameAndCheckedAttr("aggregate_draws")} />
         Aggregate draws
       </label>
-      <br>
+      <br />
       <label>
-        <input type="checkbox" ${nameAndCheckedAttr("black_on_black")}>
+        <input type="checkbox" ${nameAndCheckedAttr("black_on_black")} />
         Black on black
       </label>
-      <br>
+      <br />
     `;
   }
 
@@ -36,10 +37,10 @@ class UNOConfig extends FormComponent {
       :host {
         display: block;
         padding: 1rem;
-        background: rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.1);
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         animation: fadeIn 0.3s ease-out;
       }
 
@@ -67,22 +68,31 @@ class UNOConfig extends FormComponent {
       }
 
       @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(5px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     `;
   }
 
   mounted({ on, dispatchEvent }) {
-    on('change', (e) => {
-      const input = e.target.closest('input');
+    on("change", (e) => {
+      const input = e.target.closest("input");
       if (!input || !input.name) return;
 
       this.silentProps.config[input.name] = input.checked;
-      const event = new CustomEvent('config-change', { bubbles: true, detail: { config: this.props.config } });
+      const event = new CustomEvent("config-change", {
+        bubbles: true,
+        detail: { config: this.props.config },
+      });
       dispatchEvent(event);
     });
   }
 }
 
-UNOConfig.registerTag('config-uno');
+UNOConfig.registerTag("config-uno");

@@ -1,5 +1,5 @@
-import { Component, html, css } from '/core/base.mjs';
-import { makeDraggable, containsDeep } from '/core/utils.mjs';
+import { Component, html, css } from "/core/base.mjs";
+import { makeDraggable, containsDeep } from "/core/utils.mjs";
 
 export class CardFan extends Component {
   styles() {
@@ -15,7 +15,8 @@ export class CardFan extends Component {
         display: none;
       }
 
-      #fan, #placeholders {
+      #fan,
+      #placeholders {
         grid-column: 1 / 2;
         position: absolute;
         width: 100%;
@@ -27,15 +28,15 @@ export class CardFan extends Component {
       #fan {
         z-index: 2;
       }
-      
+
       #placeholders {
         z-index: 1;
       }
-      
+
       #placeholders.dragging {
         z-index: 3;
       }
-      
+
       .card-placeholder {
         border: 2px dashed #999;
         border-radius: 8px;
@@ -44,14 +45,16 @@ export class CardFan extends Component {
       }
 
       /* Wrapper: rotated and translated to create the fan */
-      #fan .card-wrapper, #placeholders .card-wrapper {
+      #fan .card-wrapper,
+      #placeholders .card-wrapper {
         position: absolute;
         bottom: 0;
         transform-origin: 50% 100%;
         cursor: pointer;
         transform-style: preserve-3d;
         --angle: 0deg;
-        transform: translateY(calc(-1 * var(--raise))) rotate(var(--angle)) translateY(var(--raise));
+        transform: translateY(calc(-1 * var(--raise))) rotate(var(--angle))
+          translateY(var(--raise));
         z-index: 0;
         transition: transform 160ms ease;
       }
@@ -61,7 +64,8 @@ export class CardFan extends Component {
       }
 
       /* The actual card element fills wrapper */
-      #fan .card-wrapper > *, #placeholders .card-wrapper > * {
+      #fan .card-wrapper > *,
+      #placeholders .card-wrapper > * {
         width: 100%;
         height: 100%;
         display: block;
@@ -76,47 +80,44 @@ export class CardFan extends Component {
       }
 
       #fan .card-wrapper:hover:not(.card-placeholder) > * {
-        transform:
-        rotate(calc(-1 * var(--angle)))
-        translateY(var(--hover-raise))
-        translateZ(1px)
-        scale(1.2);
+        transform: rotate(calc(-1 * var(--angle)))
+          translateY(var(--hover-raise)) translateZ(1px) scale(1.2);
       }
     `;
   }
 
   mounted({ on }) {
-    this._slot = this.shadowRoot.querySelector('slot');
-    this._fan = this.shadowRoot.querySelector('#fan');
-    this._placeholders = this.shadowRoot.querySelector('#placeholders');
-    
-    on('slotchange', this.#layout.bind(this));
+    this._slot = this.shadowRoot.querySelector("slot");
+    this._fan = this.shadowRoot.querySelector("#fan");
+    this._placeholders = this.shadowRoot.querySelector("#placeholders");
+
+    on("slotchange", this.#layout.bind(this));
     queueMicrotask(this.#layout.bind(this));
 
-    on('card-click', (e) => {
-      e.detail.index = e.detail.card.closest('.card-wrapper').dataset.index;
+    on("card-click", (e) => {
+      e.detail.index = e.detail.card.closest(".card-wrapper").dataset.index;
     });
     this.#layout();
   }
 
   #wrapCard(card) {
-    const wrapper = document.createElement('div');
-    wrapper.classList.add('card-wrapper');
+    const wrapper = document.createElement("div");
+    wrapper.classList.add("card-wrapper");
     wrapper.appendChild(card);
     return wrapper;
   }
 
   #createPlaceholder(card) {
     const placeholder = this.#wrapCard(card.cloneNode(true));
-    placeholder.classList.add('card-placeholder');
+    placeholder.classList.add("card-placeholder");
     return placeholder;
   }
 
   #updatePlaceholders(card) {
     const n = this._slot.assignedElements().length + 1;
 
-    this._placeholders.innerHTML = '';
-    
+    this._placeholders.innerHTML = "";
+
     // Create invisible cards for all cards except the one being dragged
     for (let i = 0; i < n; i++) {
       const placeholder = this.#createPlaceholder(card);
@@ -131,13 +132,12 @@ export class CardFan extends Component {
   placeholderCopy = null;
 
   #handleDragStart(e, index) {
-    console.log('CardFan drag start');
     this.#updatePlaceholders(this._slot.assignedElements()[index]);
-    this._placeholders.classList.add('dragging');
+    this._placeholders.classList.add("dragging");
 
-    const placeholders = this._placeholders.querySelectorAll('.card-wrapper');
+    const placeholders = this._placeholders.querySelectorAll(".card-wrapper");
     placeholders.forEach((card, i) => {
-      card.addEventListener('dragenter', (e) => {
+      card.addEventListener("dragenter", (e) => {
         e.stopPropagation();
         e.preventDefault();
         if (containsDeep(card, e.detail.old)) return true;
@@ -148,10 +148,10 @@ export class CardFan extends Component {
         this._fan.insertBefore(this.placeholderCopy, this._fan.children[i]);
         this.#layout2(this._fan);
       });
-      card.addEventListener('dragleave', (e) => {
+      card.addEventListener("dragleave", (e) => {
         e.stopPropagation();
         e.preventDefault();
-        if (containsDeep(card, e.detail.new)) return true; 
+        if (containsDeep(card, e.detail.new)) return true;
 
         if (this.placeholderCopy) {
           this.placeholderCopy.remove();
@@ -163,20 +163,19 @@ export class CardFan extends Component {
   }
 
   #handleDragStop() {
-    console.log('CardFan drag stop');
     if (this.placeholderCopy) {
       this.placeholderCopy.remove();
       this.placeholderCopy = null;
     }
-    this._placeholders.classList.remove('dragging');
+    this._placeholders.classList.remove("dragging");
     this.#layout2(this._fan);
   }
 
   #layout() {
     // Clear existing content
-    this._fan.innerHTML = '';
-    this._placeholders.innerHTML = '';
-    
+    this._fan.innerHTML = "";
+    this._placeholders.innerHTML = "";
+
     const cards = this._slot.assignedElements();
     const n = cards.length;
 
@@ -186,7 +185,7 @@ export class CardFan extends Component {
       wrapped.dataset.index = i;
       wrapped.style.zIndex = i;
       this._fan.appendChild(wrapped);
-      
+
       const { onDragStart, onDragStop } = makeDraggable(wrapped);
       onDragStart((e) => this.#handleDragStart(e, i));
       onDragStop((e) => this.#handleDragStop(e));
@@ -198,16 +197,16 @@ export class CardFan extends Component {
   #layout2(container) {
     const n = container.children.length;
     const curvatureDeg = 70; // fan curvature
-    
+
     const cards = Array.from(container.children);
-    
+
     // convert htmlcollection to array
     cards.forEach((card, i) => {
       const center = (n - 1) / 2;
       const curveDeg = curvatureDeg * ((i - center) / n);
       const curve = `${curveDeg}deg`;
 
-      card.style.setProperty('--angle', curve);
+      card.style.setProperty("--angle", curve);
     });
   }
 
@@ -220,4 +219,4 @@ export class CardFan extends Component {
   }
 }
 
-CardFan.registerTag('card-fan');
+CardFan.registerTag("card-fan");

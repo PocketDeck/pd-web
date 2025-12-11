@@ -1,7 +1,7 @@
-import { store } from '/core/store.mjs'
+import { store } from "/core/store.mjs";
 
 function deepReactive(target, callback, seen = new WeakMap()) {
-  if (typeof target !== 'object' || target === null) return target;
+  if (typeof target !== "object" || target === null) return target;
   if (seen.has(target)) return seen.get(target);
 
   const handler = {
@@ -9,14 +9,15 @@ function deepReactive(target, callback, seen = new WeakMap()) {
       const reactiveValue = deepReactive(value, callback, seen);
       const oldValue = obj[prop];
       const result = Reflect.set(obj, prop, reactiveValue, receiver);
-      if (result && oldValue !== reactiveValue) callback(obj, prop, reactiveValue);
+      if (result && oldValue !== reactiveValue)
+        callback(obj, prop, reactiveValue);
       return result;
     },
     deleteProperty(obj, prop) {
       const result = Reflect.deleteProperty(obj, prop);
       if (result) callback(obj, prop, undefined);
       return result;
-    }
+    },
   };
 
   // TODO: handle Map and Set
@@ -29,7 +30,7 @@ function deepReactive(target, callback, seen = new WeakMap()) {
 function deepReactiveClone(obj) {
   if (obj instanceof Map) return Object.fromEntries(obj);
   if (obj instanceof Set) return [...obj];
-  if (typeof obj !== 'object' || obj === null) return obj;
+  if (typeof obj !== "object" || obj === null) return obj;
 
   const plain = {};
   for (const key in obj) {
@@ -44,7 +45,7 @@ export class Component extends HTMLElement {
 
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: "open" });
     this.silentProps = structuredClone(this.constructor.props);
     this.props = deepReactive(this.silentProps, this._update.bind(this));
   }
@@ -89,8 +90,12 @@ export class Component extends HTMLElement {
     `;
   }
 
-  render() { return ''; }
-  styles() { return ''; }
+  render() {
+    return "";
+  }
+  styles() {
+    return "";
+  }
   mounted() {}
   unmounted() {}
 
@@ -104,8 +109,7 @@ export class Component extends HTMLElement {
   }
 
   static registerTag(tag) {
-    if (tag && !customElements.get(tag))
-      customElements.define(tag, this);
+    if (tag && !customElements.get(tag)) customElements.define(tag, this);
   }
 }
 
@@ -116,8 +120,8 @@ export class FormComponent extends Component {
     super();
     this._internals = this.attachInternals();
 
-    this.on('input', () => this.checkValidity());
-    this.on('change', () => this.checkValidity());
+    this.on("input", () => this.checkValidity());
+    this.on("change", () => this.checkValidity());
   }
 
   formAssociatedCallback() {
@@ -131,7 +135,10 @@ export class FormComponent extends Component {
 
   #getAllFormControls() {
     const result = [];
-    const walker = document.createTreeWalker(this.shadowRoot, NodeFilter.SHOW_ELEMENT);
+    const walker = document.createTreeWalker(
+      this.shadowRoot,
+      NodeFilter.SHOW_ELEMENT,
+    );
 
     let node;
     while ((node = walker.nextNode())) {
@@ -140,8 +147,9 @@ export class FormComponent extends Component {
         continue;
       }
 
-      if (typeof node.checkValidity === 'function' &&
-        typeof node.reportValidity === 'function'
+      if (
+        typeof node.checkValidity === "function" &&
+        typeof node.reportValidity === "function"
       ) {
         result.push(node);
       }
@@ -152,7 +160,11 @@ export class FormComponent extends Component {
   #reduceValidity(cb) {
     for (const el of this.#getAllFormControls()) {
       if (cb(el)) continue;
-      this._internals.setValidity({ customError: true }, el.validationMessage || 'Invalid', el)
+      this._internals.setValidity(
+        { customError: true },
+        el.validationMessage || "Invalid",
+        el,
+      );
       return false;
     }
 
@@ -169,8 +181,8 @@ export class FormComponent extends Component {
 }
 
 export const html = (strings, ...values) => {
-  const processedValues = values.map(value => {
-    if (typeof value === 'object' && value !== null) {
+  const processedValues = values.map((value) => {
+    if (typeof value === "object" && value !== null) {
       const uuid = crypto.randomUUID();
       store.set(uuid, deepReactiveClone(value));
       return uuid;
@@ -182,19 +194,18 @@ export const html = (strings, ...values) => {
 };
 export const css = String.raw;
 
-
-import { navigate } from '/core/router.mjs'
+import { navigate } from "/core/router.mjs";
 export class Page extends Component {
   #socket;
 
   connectedCallback() {
-    this.#socket?.addEventListener('message', this.#onMessage);
+    this.#socket?.addEventListener("message", this.#onMessage);
     super.connectedCallback();
   }
 
   disconnectedCallback() {
     if (this._onMessage && this.#socket)
-      this.#socket.removeEventListener('message', this.#onMessage);
+      this.#socket.removeEventListener("message", this.#onMessage);
     super.disconnectedCallback();
   }
 
@@ -217,7 +228,7 @@ export class Page extends Component {
 
   #onMessage(event) {
     const payload = JSON.parse(event.data);
-    if (payload.type === 'navigate') {
+    if (payload.type === "navigate") {
       navigate(payload.msg.page, this.#socket);
     } else {
       this.#messageListeners.get(payload.type)?.(payload.msg);

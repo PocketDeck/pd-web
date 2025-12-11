@@ -1,7 +1,7 @@
 let socket = null;
 
 export function initSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   socket = new WebSocket(`${protocol}//${location.hostname}/ws/`);
 
   socket.addEventListener("open", () => {
