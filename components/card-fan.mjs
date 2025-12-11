@@ -73,10 +73,7 @@ export class CardFan extends Component {
         transition: transform 160ms ease;
         position: relative;
         z-index: 3;
-      }
-
-      #fan .card-wrapper:not(:hover) > * {
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       #fan .card-wrapper:hover:not(.card-placeholder) > * {
