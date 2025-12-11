@@ -121,6 +121,7 @@ export class CardFan extends Component {
     for (let i = 0; i < n; i++) {
       const placeholder = this.#createPlaceholder(card);
       placeholder.dataset.index = i;
+      placeholder.style.zIndex = n - i;
       this._placeholders.appendChild(placeholder);
     }
 
@@ -137,16 +138,21 @@ export class CardFan extends Component {
     const placeholders = this._placeholders.querySelectorAll('.card-wrapper');
     placeholders.forEach((card, i) => {
       card.addEventListener('dragenter', (e) => {
-        console.log('Card drag enter');
+        e.stopPropagation();
+        e.preventDefault();
         if (containsDeep(card, e.detail.old)) return true;
+
         if (this.placeholderCopy) this.placeholderCopy.remove();
         this.placeholderCopy = card.cloneNode(true);
         this.placeholderCopy.style.zIndex = 0;
         this._fan.insertBefore(this.placeholderCopy, this._fan.children[i]);
         this.#layout2(this._fan);
       });
-      card.addEventListener('dragleave', () => {
-        console.log('Card drag leave');
+      card.addEventListener('dragleave', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (containsDeep(card, e.detail.new)) return true; 
+
         if (this.placeholderCopy) {
           this.placeholderCopy.remove();
           this.placeholderCopy = null;
@@ -178,6 +184,7 @@ export class CardFan extends Component {
       el = el.cloneNode(true);
       const wrapped = this.#wrapCard(el);
       wrapped.dataset.index = i;
+      wrapped.style.zIndex = i;
       this._fan.appendChild(wrapped);
       
       const { onDragStart, onDragStop } = makeDraggable(wrapped);
@@ -201,7 +208,6 @@ export class CardFan extends Component {
       const curve = `${curveDeg}deg`;
 
       card.style.setProperty('--angle', curve);
-      card.style.zIndex = i;
     });
   }
 
