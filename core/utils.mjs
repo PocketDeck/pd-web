@@ -47,7 +47,7 @@ export function makeDraggable(element) {
       element._dragAnimation &&
       element._dragAnimation.playState === "running"
     ) {
-      element._dragAnimation.cancel();
+      return;
     }
     originalParent = element.parentNode;
     originalSibling = element.nextSibling;
@@ -98,12 +98,25 @@ export function makeDraggable(element) {
 
   const onEnd = (e) => {
     if (!dragging || !wrapper) return;
-    element._dragAnimation = moveWithAnimation(
-      element,
-      originalParent,
-      originalSibling,
-      { endCallback: () => dragStop?.(e) },
-    );
+    const event = new CustomEvent("dragdrop", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      detail: { el: element },
+    });
+    const handled = dragOverElement?.dispatchEvent(event) === false;
+
+    if (!handled) {
+      element._dragAnimation = moveWithAnimation(
+        element,
+        originalParent,
+        originalSibling,
+        { endCallback: () => dragStop?.(e) },
+      );
+    } else {
+      dragStop?.(e);
+    }
+
     wrapper.remove();
     dragging = false;
     dragOverElement = null;
@@ -165,6 +178,7 @@ export function moveWithAnimation(
   );
 
   animation.oncancel = () => {
+    newParent.insertBefore(element, nextSibling);
     wrapper.remove();
     endCallback?.();
   };

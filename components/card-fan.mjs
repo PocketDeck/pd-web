@@ -1,5 +1,9 @@
 import { Component, html, css } from "/core/base.mjs";
-import { makeDraggable, containsDeep } from "/core/utils.mjs";
+import {
+  makeDraggable,
+  containsDeep,
+  moveWithAnimation,
+} from "/core/utils.mjs";
 
 export class CardFan extends Component {
   styles() {
@@ -129,12 +133,24 @@ export class CardFan extends Component {
     // Create invisible cards for all cards except the one being dragged
     for (let i = 0; i < n; i++) {
       const placeholder = this.#createPlaceholder(card);
-      placeholder.dataset.index = i;
-      placeholder.style.zIndex = n - i;
+      placeholder.addEventListener("dragdrop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // TODO: backend call
+        e.detail.el.style.setProperty(
+          "--angle",
+          placeholder.style.getPropertyValue("--angle"),
+        );
+        moveWithAnimation(e.detail.el, this._fan, this._fan.children[i + 1], {
+          endCallback: () => this.#layout2(this._fan),
+          animate: false,
+        });
+      });
       this._placeholders.appendChild(placeholder);
     }
 
-    this.#layout2(this._placeholders);
+    this.#layout2(this._placeholders, { reverseZIndex: true });
   }
 
   placeholderCopy = null;
@@ -190,8 +206,6 @@ export class CardFan extends Component {
     cards.forEach((el, i) => {
       el = el.cloneNode(true);
       const wrapped = this.#wrapCard(el);
-      wrapped.dataset.index = i;
-      wrapped.style.zIndex = i;
       this._fan.appendChild(wrapped);
 
       const { onDragStart, onDragStop } = makeDraggable(wrapped);
@@ -202,7 +216,7 @@ export class CardFan extends Component {
     this.#layout2(this._fan);
   }
 
-  #layout2(container) {
+  #layout2(container, options = { reverseZIndex: false }) {
     const n = container.children.length;
     const curvatureDeg = 70; // fan curvature
 
@@ -215,6 +229,9 @@ export class CardFan extends Component {
       const curve = `${curveDeg}deg`;
 
       card.style.setProperty("--angle", curve);
+
+      card.dataset.index = i;
+      card.style.zIndex = options.reverseZIndex ? n - i : i;
     });
   }
 
