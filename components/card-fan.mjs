@@ -6,7 +6,7 @@ export class CardFan extends Component {
     return css`
       :host {
         --raise: -225%;
-        --hover-raise: -32%;
+        --hover-raise: -42.5%;
         position: relative;
         display: grid;
       }
@@ -56,7 +56,13 @@ export class CardFan extends Component {
         transform: translateY(calc(-1 * var(--raise))) rotate(var(--angle))
           translateY(var(--raise));
         z-index: 0;
-        transition: transform 160ms ease;
+        transition:
+          transform 300ms,
+          translate 0s;
+      }
+
+      #fan .card-wrapper:hover:not(.card-placehoder) {
+        animation: hover 1s ease-in-out infinite alternate forwards;
       }
 
       #placeholders {
@@ -69,16 +75,21 @@ export class CardFan extends Component {
         width: 100%;
         height: 100%;
         display: block;
-        transform-origin: 50% 50%;
-        transition: transform 160ms ease;
+        transition-duration: 200ms;
         position: relative;
         z-index: 3;
         pointer-events: none;
       }
 
       #fan .card-wrapper:hover:not(.card-placeholder) > * {
-        transform: rotate(calc(-1 * var(--angle)))
-          translateY(var(--hover-raise)) translateZ(1px) scale(1.2);
+        transform: translateZ(1px) translateY(var(--hover-raise))
+          rotate(calc(-1 * var(--angle))) scale(1.2);
+      }
+
+      @keyframes hover {
+        to {
+          translate: 0px 12px;
+        }
       }
     `;
   }
