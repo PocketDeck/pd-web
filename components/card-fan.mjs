@@ -6,6 +6,10 @@ import {
 } from "/core/utils.mjs";
 
 export class CardFan extends Component {
+  static props = {
+    curvature: 70,
+  };
+
   styles() {
     return css`
       :host {
@@ -218,7 +222,7 @@ export class CardFan extends Component {
 
   #layout2(container, options = { reverseZIndex: false }) {
     const n = container.children.length;
-    const curvatureDeg = 70; // fan curvature
+    const curvatureDeg = this.props.curvature; // fan curvature
 
     const cards = Array.from(container.children);
 
