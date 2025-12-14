@@ -1,1 +1,5 @@
 [ ] - make utils/makeDraggable execute onMove after onStart
+[ ] - card fan card swapping - backend sync
+[ ] - - card element map: id -> element
+[ ] - - after dropzone: call backend (& animate back to original position?)
+[ ] - - backend acknowledges move: move cards with map
