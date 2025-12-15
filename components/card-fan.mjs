@@ -5,6 +5,35 @@ import {
   moveWithAnimation,
 } from "/core/utils.mjs";
 
+function fanContainer(container, curvatureDeg, options = { reverseZIndex: false }) {
+  const n = container.children.length;
+  const cards = Array.from(container.children);
+
+  cards.forEach((card, i) => {
+    const center = (n - 1) / 2;
+    const curveDeg = curvatureDeg * ((i - center) / n);
+    const curve = `${curveDeg}deg`;
+
+    card.style.setProperty("--angle", curve);
+
+    card.dataset.index = i;
+    card.style.zIndex = options.reverseZIndex ? n - i : i;
+  });
+}
+
+function createCardWrapper(card) {
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("card-wrapper");
+  wrapper.appendChild(card);
+  return wrapper;
+}
+
+function createPlaceholder(card) {
+  const placeholder = createCardWrapper(card.cloneNode(true));
+  placeholder.classList.add("card-placeholder");
+  return placeholder;
+}
+
 export class CardFan extends Component {
   static props = {
     curvature: 70,
@@ -50,6 +79,7 @@ export class CardFan extends Component {
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.1);
         opacity: 0.5;
+        cursor: none;
       }
 
       /* Wrapper: rotated and translated to create the fan */
@@ -116,19 +146,6 @@ export class CardFan extends Component {
     this.#layout();
   }
 
-  #wrapCard(card) {
-    const wrapper = document.createElement("div");
-    wrapper.classList.add("card-wrapper");
-    wrapper.appendChild(card);
-    return wrapper;
-  }
-
-  #createPlaceholder(card) {
-    const placeholder = this.#wrapCard(card.cloneNode(true));
-    placeholder.classList.add("card-placeholder");
-    return placeholder;
-  }
-
   #updatePlaceholders(card) {
     const n = this._slot.assignedElements().length + 1;
 
@@ -136,7 +153,7 @@ export class CardFan extends Component {
 
     // Create invisible cards for all cards except the one being dragged
     for (let i = 0; i < n; i++) {
-      const placeholder = this.#createPlaceholder(card);
+      const placeholder = createPlaceholder(card);
       placeholder.addEventListener("dragdrop", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -147,17 +164,17 @@ export class CardFan extends Component {
           placeholder.style.getPropertyValue("--angle"),
         );
         moveWithAnimation(e.detail.el, this._fan, this._fan.children[i + 1], {
-          endCallback: () => this.#layout2(this._fan),
+          endCallback: () => fanContainer(this._fan, this.props.curvature),
           animate: false,
         });
       });
       this._placeholders.appendChild(placeholder);
     }
 
-    this.#layout2(this._placeholders, { reverseZIndex: true });
+    fanContainer(this._placeholders, this.props.curvature, { reverseZIndex: true });
   }
 
-  placeholderCopy = null;
+  #placeholderCopy = null;
 
   #handleDragStart(e, index) {
     this.#updatePlaceholders(this._slot.assignedElements()[index]);
@@ -170,33 +187,33 @@ export class CardFan extends Component {
         e.preventDefault();
         if (containsDeep(card, e.detail.old)) return true;
 
-        if (this.placeholderCopy) this.placeholderCopy.remove();
-        this.placeholderCopy = card.cloneNode(true);
-        this.placeholderCopy.style.zIndex = 0;
-        this._fan.insertBefore(this.placeholderCopy, this._fan.children[i]);
-        this.#layout2(this._fan);
+        if (this.#placeholderCopy) this.#placeholderCopy.remove();
+        this.#placeholderCopy = card.cloneNode(true);
+        this.#placeholderCopy.style.zIndex = 0;
+        this._fan.insertBefore(this.#placeholderCopy, this._fan.children[i]);
+        fanContainer(this._fan, this.props.curvature);
       });
       card.addEventListener("dragleave", (e) => {
         e.stopPropagation();
         e.preventDefault();
         if (containsDeep(card, e.detail.new)) return true;
 
-        if (this.placeholderCopy) {
-          this.placeholderCopy.remove();
-          this.placeholderCopy = null;
-          this.#layout2(this._fan);
+        if (this.#placeholderCopy) {
+          this.#placeholderCopy.remove();
+          this.#placeholderCopy = null;
+          fanContainer(this._fan, this.props.curvature);
         }
       });
     });
   }
 
   #handleDragStop() {
-    if (this.placeholderCopy) {
-      this.placeholderCopy.remove();
-      this.placeholderCopy = null;
+    if (this.#placeholderCopy) {
+      this.#placeholderCopy.remove();
+      this.#placeholderCopy = null;
     }
     this._placeholders.classList.remove("dragging");
-    this.#layout2(this._fan);
+    fanContainer(this._fan, this.props.curvature);
   }
 
   #layout() {
@@ -209,7 +226,7 @@ export class CardFan extends Component {
 
     cards.forEach((el, i) => {
       el = el.cloneNode(true);
-      const wrapped = this.#wrapCard(el);
+      const wrapped = createCardWrapper(el);
       this._fan.appendChild(wrapped);
 
       const { onDragStart, onDragStop } = makeDraggable(wrapped);
@@ -217,26 +234,7 @@ export class CardFan extends Component {
       onDragStop((e) => this.#handleDragStop(e));
     });
 
-    this.#layout2(this._fan);
-  }
-
-  #layout2(container, options = { reverseZIndex: false }) {
-    const n = container.children.length;
-    const curvatureDeg = this.props.curvature; // fan curvature
-
-    const cards = Array.from(container.children);
-
-    // convert htmlcollection to array
-    cards.forEach((card, i) => {
-      const center = (n - 1) / 2;
-      const curveDeg = curvatureDeg * ((i - center) / n);
-      const curve = `${curveDeg}deg`;
-
-      card.style.setProperty("--angle", curve);
-
-      card.dataset.index = i;
-      card.style.zIndex = options.reverseZIndex ? n - i : i;
-    });
+    fanContainer(this._fan, this.props.curvature);
   }
 
   render() {
