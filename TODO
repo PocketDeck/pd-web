@@ -3,3 +3,4 @@
 [ ] - - card element map: id -> element
 [ ] - - after dropzone: call backend (& animate back to original position?)
 [ ] - - backend acknowledges move: move cards with map
+[ ] - factor out static functions in card-fan
