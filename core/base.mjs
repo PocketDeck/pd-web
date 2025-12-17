@@ -231,7 +231,12 @@ export class Page extends Component {
     if (payload.type === "navigate") {
       navigate(payload.msg.page, this.#socket);
     } else {
-      this.#messageListeners.get(payload.type)?.(payload.msg);
+      for (let type = payload.type; type.includes("."); type = type.slice(0, type.lastIndexOf("."))) {
+        if (this.#messageListeners.has(type)) {
+          this.#messageListeners.get(type)(payload.msg);
+          break;
+        }
+      }
     }
   }
 

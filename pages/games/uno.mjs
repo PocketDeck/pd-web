@@ -3,6 +3,12 @@ import { basicStyle } from "/styles/styles.mjs";
 import "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
 
+// TODO: check if it only changes array prototypes in this module
+Array.prototype.move = function(from, to) {
+  this.splice(to, 0, this.splice(from, 1)[0]);
+  return this;
+}
+
 export class UnoPage extends Page {
   static props = {
     players: [],
@@ -45,13 +51,22 @@ export class UnoPage extends Page {
       })
       .join("");
 
-    return html` <card-fan>${cardsHtml}</card-fan> `;
+    return html`<card-fan id="fan">${cardsHtml}</card-fan> `;
   }
 
-  mounted({ on }) {
+  mounted({ on, onMessage }) {
+    const fan = this.shadowRoot.querySelector("#fan");
+
     on("card-click", (e) => {
       console.log("Card clicked:", e.detail.index);
     });
+
+    onMessage("fan.insert.success", (m) => {
+      hand.move(m.from, m.to);
+      fan.model.insert(m);
+    });
+    onMessage("fan.insert.failure", fan.model.insert);
+    onMessage("fan.play", fan.model.play);
   }
 }
 
