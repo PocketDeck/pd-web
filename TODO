@@ -4,3 +4,4 @@
 [ ] - - after dropzone: call backend (& animate back to original position?)
 [ ] - - backend acknowledges move: move cards with map
 [x] - factor out static functions in card-fan
+[ ] - make mounted pass this.props instead of this
