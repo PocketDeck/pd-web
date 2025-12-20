@@ -41,8 +41,8 @@ class LobbyPage extends Page {
     `;
   }
 
-  mounted({ on, onMessage, dispatchMessage }) {
-    on("click", (e) => {
+  mounted() {
+    this.on("click", (e) => {
       if (e.target.closest(".ready-button")) {
         this.props.ready = !this.props.ready;
 
@@ -51,14 +51,14 @@ class LobbyPage extends Page {
       }
 
       if (e.target.closest(".leave-button")) {
-        dispatchMessage("leave");
+        this.dispatchMessage("leave");
 
         // TODO: remove
         this.navigate("login");
       }
     });
 
-    dispatchMessage("status");
+    this.dispatchMessage("status");
 
     onMessage("status", (msg) => {
       this.setState({

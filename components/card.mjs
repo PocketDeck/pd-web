@@ -58,14 +58,14 @@ export class Card extends Component {
     `;
   }
 
-  mounted({ on, dispatchEvent }) {
-    on("click", () => {
+  mounted() {
+    this.on("click", () => {
       const event = new CustomEvent("card-click", {
         bubbles: true,
         composed: true,
         detail: { card: this },
       });
-      dispatchEvent(event);
+      this.dispatchEvent(event);
     });
   }
 }

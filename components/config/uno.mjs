@@ -80,8 +80,8 @@ class UNOConfig extends FormComponent {
     `;
   }
 
-  mounted({ on, dispatchEvent }) {
-    on("change", (e) => {
+  mounted() {
+    this.on("change", (e) => {
       const input = e.target.closest("input");
       if (!input || !input.name) return;
 
@@ -90,7 +90,7 @@ class UNOConfig extends FormComponent {
         bubbles: true,
         detail: { config: this.props.config },
       });
-      dispatchEvent(event);
+      this.dispatchEvent(event);
     });
   }
 }

@@ -54,19 +54,25 @@ export class UnoPage extends Page {
     return html`<card-fan id="fan">${cardsHtml}</card-fan> `;
   }
 
-  mounted({ on, onMessage }) {
+  mounted() {
     const fan = this.shadowRoot.querySelector("#fan");
 
-    on("card-click", (e) => {
+    this.on("card-click", (e) => {
       console.log("Card clicked:", e.detail.index);
     });
-
-    onMessage("fan.insert.success", (m) => {
-      hand.move(m.from, m.to);
-      fan.model.insert(m);
+    this.on("fan-insert", (e) => {
+      this.dispatchMessage("fan.insert", {
+        from: e.from,
+        to: e.to,
+      });
     });
-    onMessage("fan.insert.failure", fan.model.insert);
-    onMessage("fan.play", fan.model.play);
+
+    this.onMessage("fan.insert.success", (m) => {
+      hand.move(m.from, m.to);
+      fan.model.insertSuccess(m);
+    });
+    this.onMessage("fan.insert.failure", fan.model.insertFailure);
+    this.onMessage("fan.play", fan.model.play);
   }
 }
 

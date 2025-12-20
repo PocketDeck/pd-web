@@ -57,15 +57,12 @@ export class Component extends HTMLElement {
   connectedCallback() {
     this.#mounted = true;
     this._update();
-    this.mounted({
-      on: this.on.bind(this),
-      dispatchEvent: this.dispatchEvent.bind(this),
-    });
+    this.mounted(this);
   }
 
   disconnectedCallback() {
     this.#mounted = false;
-    this.unmounted();
+    this.unmounted(this);
   }
 
   attributeChangedCallback(name, _, newVal) {
@@ -214,7 +211,10 @@ export class Page extends Component {
   }
 
   dispatchMessage(type, msg) {
-    if (!this.#socket || this.#socket.readyState !== WebSocket.OPEN) return;
+    if (!this.#socket || this.#socket.readyState !== WebSocket.OPEN) {
+      console.warn("WebSocket disconnected; Cannot send message!");
+      return;
+    }
     const payload = JSON.stringify({
       page: this._pageId,
       type,

@@ -16,11 +16,17 @@ export function makeDraggable(element) {
   if (element._draggable) return;
   element._draggable = true;
 
-  let wrapper = null;
   let originalParent = null;
   let originalSibling = null;
   let dragOverElement = null;
   let dragging = false;
+  let dropping = false;
+  let wrapper = document.createElement("div");
+  wrapper.style.position = "fixed";
+  wrapper.style.top = "0";
+  wrapper.style.left = "0";
+  wrapper.style.pointerEvents = "none";
+  wrapper.style.zIndex = "10000";
 
   let dragStart = null;
   const onDragStart = (start) => {
@@ -42,7 +48,7 @@ export function makeDraggable(element) {
   };
 
   const onStart = (e) => {
-    if (dragging) return;
+    if (dragging || dropping) return;
     if (
       element._dragAnimation &&
       element._dragAnimation.playState === "running"
@@ -52,12 +58,6 @@ export function makeDraggable(element) {
     originalParent = element.parentNode;
     originalSibling = element.nextSibling;
 
-    wrapper = document.createElement("div");
-    wrapper.style.position = "fixed";
-    wrapper.style.top = "0";
-    wrapper.style.left = "0";
-    wrapper.style.pointerEvents = "none";
-    wrapper.style.zIndex = "10000";
     document.body.appendChild(wrapper);
     wrapper.appendChild(element);
     moveTo(e.clientX, e.clientY);
@@ -66,7 +66,7 @@ export function makeDraggable(element) {
   };
 
   const onMove = (e) => {
-    if (!dragging || !wrapper) return;
+    if (!dragging || dropping) return;
     moveTo(e.clientX, e.clientY);
 
     const oldDragOverElement = dragOverElement;
@@ -97,29 +97,36 @@ export function makeDraggable(element) {
   };
 
   const onEnd = (e) => {
-    if (!dragging || !wrapper) return;
-    const event = new CustomEvent("dragdrop", {
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-      detail: { el: element },
-    });
-    const handled = dragOverElement?.dispatchEvent(event) === false;
+    if (!dragging || dropping) return;
 
-    if (!handled) {
+    dropping = true;
+    element.finalizeDrop = () => {
+      wrapper.remove();
+      dragging = false;
+      dropping = false;
+    }
+    element.abortDrop = () => {
       element._dragAnimation = moveWithAnimation(
         element,
         originalParent,
         originalSibling,
         { endCallback: () => dragStop?.(e) },
       );
-    } else {
-      dragStop?.(e);
-    }
+      element.finalizeDrop();
+    };
 
-    wrapper.remove();
-    dragging = false;
+    const event = new CustomEvent("dragdrop", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      detail: { el: element },
+    });
+
+    const handled = dragOverElement?.dispatchEvent(event) === false;
     dragOverElement = null;
+
+    if (!handled) element.abortDrop();
+    else dragStop?.(e);
   };
 
   element.addEventListener("pointerdown", onStart);

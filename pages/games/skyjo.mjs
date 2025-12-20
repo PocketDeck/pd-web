@@ -57,8 +57,8 @@ export class SkyjoPage extends Page {
     `;
   }
 
-  mounted({ on }) {
-    on("card-click", (e) => {
+  mounted() {
+    this.on("card-click", (e) => {
       console.log("Card clicked:", e.detail.index);
       // Toggle card visibility on click
       this.updateProps({

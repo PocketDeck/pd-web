@@ -44,8 +44,8 @@ export class SkipboPage extends Page {
     `;
   }
 
-  mounted({ on }) {
-    on("card-click", (e) => {
+  mounted() {
+    this.on("card-click", (e) => {
       console.log("Card clicked:", e.detail.index);
     });
   }
