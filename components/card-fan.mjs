@@ -132,19 +132,21 @@ export class CardFan extends Component {
     `;
   }
 
-  mounted({ on }) {
+  mounted() {
     this._slot = this.shadowRoot.querySelector("slot");
     this._fan = this.shadowRoot.querySelector("#fan");
     this._placeholders = this.shadowRoot.querySelector("#placeholders");
 
-    on("slotchange", this.#layout.bind(this));
+    this.on("slotchange", this.#layout.bind(this));
     queueMicrotask(this.#layout.bind(this));
 
-    on("card-click", (e) => {
+    this.on("card-click", (e) => {
       e.detail.index = e.detail.card.closest(".card-wrapper").dataset.index;
     });
     this.#layout();
   }
+
+  #pendingCard = null;
 
   #updatePlaceholders(card) {
     const n = this._slot.assignedElements().length + 1;
@@ -155,18 +157,26 @@ export class CardFan extends Component {
     for (let i = 0; i < n; i++) {
       const placeholder = createPlaceholder(card);
       placeholder.addEventListener("dragdrop", (e) => {
+        if (this.#pendingCard !== null) return;
         e.preventDefault();
         e.stopPropagation();
 
+        this.#pendingCard = e.detail.el;
+
         // TODO: backend call
-        e.detail.el.style.setProperty(
-          "--angle",
-          placeholder.style.getPropertyValue("--angle"),
-        );
-        moveWithAnimation(e.detail.el, this._fan, this._fan.children[i + 1], {
-          endCallback: () => fanContainer(this._fan, this.props.curvature),
-          animate: false,
-        });
+        //e.detail.el.style.setProperty(
+        //  "--angle",
+        //  placeholder.style.getPropertyValue("--angle"),
+        //);
+        //moveWithAnimation(e.detail.el, this._fan, this._fan.children[i + 1], {
+        //  endCallback: () => fanContainer(this._fan, this.props.curvature),
+        //  animate: false,
+        //});
+        this.dispatchEvent(new CustomEvent("fan-insert", {
+          bubbles: true,
+          composed: true,
+          detail: { from: e.detail.el.dataset.index, to: i },
+        }));
       });
       this._placeholders.appendChild(placeholder);
     }
@@ -222,7 +232,6 @@ export class CardFan extends Component {
     this._placeholders.innerHTML = "";
 
     const cards = this._slot.assignedElements();
-    const n = cards.length;
 
     cards.forEach((el, i) => {
       el = el.cloneNode(true);
@@ -236,6 +245,30 @@ export class CardFan extends Component {
 
     fanContainer(this._fan, this.props.curvature);
   }
+
+  model = {
+    insertFailure: this.#pendingCard?.abortDrop,
+    insertSuccess: (m) => {
+      if (this.#pendingCard !== null) {
+        if (this.#pendingCard.dataset.index !== m.from) {
+          this.#pendingCard.abortDrop();
+          return;
+        }
+
+        this.#pendingCard._dragAnimation = moveWithAnimation(
+          this.#pendingCard,
+          this._fan,
+          this._fan.children[i],
+          { endCallback: () => fanContainer(this._fan, this.props.curvature) },
+        );
+      }
+
+      this.#pendingCard?.finalizeDrop();
+    },
+    play: (m) => {
+
+    }
+  };
 
   render() {
     return html`
