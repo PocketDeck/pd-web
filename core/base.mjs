@@ -1,107 +1,135 @@
-import { store } from "/core/store.mjs";
-
 function deepReactive(target, callback, seen = new WeakMap()) {
   if (typeof target !== "object" || target === null) return target;
   if (seen.has(target)) return seen.get(target);
 
   const handler = {
     set(obj, prop, value, receiver) {
-      const reactiveValue = deepReactive(value, callback, seen);
-      const oldValue = obj[prop];
-      const result = Reflect.set(obj, prop, reactiveValue, receiver);
-      if (result && oldValue !== reactiveValue)
-        callback(obj, prop, reactiveValue);
-      return result;
+      const rv = deepReactive(value, callback, seen);
+      const old = obj[prop];
+      const res = Reflect.set(obj, prop, rv, receiver);
+      if (res && old !== rv) callback(obj, prop, rv);
+      return res;
     },
     deleteProperty(obj, prop) {
-      const result = Reflect.deleteProperty(obj, prop);
-      if (result) callback(obj, prop, undefined);
-      return result;
+      const res = Reflect.deleteProperty(obj, prop);
+      if (res) callback(obj, prop, undefined);
+      return res;
     },
   };
-
-  // TODO: handle Map and Set
 
   const proxy = new Proxy(target, handler);
   seen.set(target, proxy);
   return proxy;
 }
 
-function deepReactiveClone(obj) {
-  if (obj instanceof Map) return Object.fromEntries(obj);
-  if (obj instanceof Set) return [...obj];
-  if (typeof obj !== "object" || obj === null) return obj;
+function _morphChildren(parent, newNodes) {
+  const old = [...parent.childNodes];
+  const newArr = [...newNodes.childNodes];
+  const len = Math.max(old.length, newArr.length);
 
-  const plain = {};
-  for (const key in obj) {
-    plain[key] = deepReactiveClone(obj[key]);
+  for (let i = 0; i < len; i++) {
+    const o = old[i];
+    const n = newArr[i];
+
+    if (o && n) {
+      if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) {
+        o.replaceWith(document.importNode(n, true));
+      } else {
+        _morphNode(o, n);
+      }
+    } else if (o && !n) {
+      o.remove();
+    } else if (!o && n) {
+      parent.appendChild(document.importNode(n, true));
+    }
   }
-  return plain;
+}
+
+function _morphNode(old, nev) {
+  if (nev.nodeType === Node.TEXT_NODE) {
+    if (old.textContent !== nev.textContent) old.textContent = nev.textContent;
+    return;
+  }
+
+  for (const { name, value } of nev.attributes) {
+    if (old.getAttribute(name) !== value) old.setAttribute(name, value);
+  }
+  for (const { name } of old.attributes) {
+    if (!nev.hasAttribute(name)) old.removeAttribute(name);
+  }
+
+  if (old.tagName?.includes("-")) return;
+  _morphChildren(old, nev);
+}
+
+function _patch(parent, html) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  _morphChildren(parent, tpl.content);
 }
 
 export class Component extends HTMLElement {
   static props = {};
+  #pending = false;
   #mounted = false;
+  #listeners = new Map();
 
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
-    this.silentProps = structuredClone(this.constructor.props);
-    this.props = deepReactive(this.silentProps, this._update.bind(this));
+    this.silent = structuredClone(this.constructor.props);
+    this.state = deepReactive(this.silent, () => this.#requestUpdate());
   }
 
   static get observedAttributes() {
     return Object.keys(this.props);
   }
 
+  attributeChangedCallback(name, _, value) {
+    try { this.silent[name] = JSON.parse(value); }
+    catch { this.silent[name] = value; }
+    if (this.#mounted) this.#requestUpdate();
+  }
+
   connectedCallback() {
     this.#mounted = true;
+    if (!this._root) this._root = this.appendChild(document.createElement("div"));
     this._update();
-    this.mounted(this);
+    this.mounted();
   }
 
   disconnectedCallback() {
     this.#mounted = false;
-    this.unmounted(this);
+    this.unmounted();
   }
 
-  attributeChangedCallback(name, _, newVal) {
-    if (store.has(newVal)) {
-      this.props[name] = store.get(newVal);
-      store.delete(newVal);
-    } else {
-      this.props[name] = newVal;
-    }
+  setState(partial) {
+    Object.assign(this.silent, partial);
+    this.#requestUpdate();
   }
 
-  setState(state) {
-    Object.assign(this.silentProps, state);
-    this._update();
+  #requestUpdate() {
+    if (this.#pending || !this.#mounted) return;
+    this.#pending = true;
+    queueMicrotask(() => {
+      this.#pending = false;
+      this._update();
+    });
   }
 
   _update() {
-    if (!this.#mounted) return;
-    this.shadowRoot.innerHTML = `
-      <style>${this.styles(this)}</style>
-      ${this.render(this)}
-    `;
+    _patch(this._root, `<style>${this.styles()}</style>${this.render()}`);
   }
 
-  render() {
-    return "";
-  }
-  styles() {
-    return "";
-  }
+  render() { return ""; }
+  styles() { return ""; }
   mounted() {}
   unmounted() {}
 
-  #listeners = new Map();
   on(type, listener, options) {
     if (this.#listeners.has(type)) {
-      this.shadowRoot.removeEventListener(type, this.#listeners.get(type));
+      this.removeEventListener(type, this.#listeners.get(type));
     }
-    this.shadowRoot.addEventListener(type, listener, options);
+    this.addEventListener(type, listener, options);
     this.#listeners.set(type, listener);
   }
 
@@ -116,7 +144,6 @@ export class FormComponent extends Component {
   constructor() {
     super();
     this._internals = this.attachInternals();
-
     this.on("input", () => this.checkValidity());
     this.on("change", () => this.checkValidity());
   }
@@ -132,18 +159,13 @@ export class FormComponent extends Component {
 
   #getAllFormControls() {
     const result = [];
-    const walker = document.createTreeWalker(
-      this.shadowRoot,
-      NodeFilter.SHOW_ELEMENT,
-    );
-
+    const walker = document.createTreeWalker(this._root, NodeFilter.SHOW_ELEMENT);
     let node;
     while ((node = walker.nextNode())) {
       if (node instanceof FormComponent) {
         result.push(...node.#getAllFormControls());
         continue;
       }
-
       if (
         typeof node.checkValidity === "function" &&
         typeof node.reportValidity === "function"
@@ -157,90 +179,70 @@ export class FormComponent extends Component {
   #reduceValidity(cb) {
     for (const el of this.#getAllFormControls()) {
       if (cb(el)) continue;
-      this._internals.setValidity(
-        { customError: true },
-        el.validationMessage || "Invalid",
-        el,
-      );
+      this._internals.setValidity({ customError: true }, el.validationMessage || "Invalid", el);
       return false;
     }
-
     this._internals.setValidity({});
     return true;
   }
 
-  checkValidity() {
-    return this.#reduceValidity((el) => el.checkValidity());
-  }
-  reportValidity() {
-    return this.#reduceValidity((el) => el.reportValidity());
-  }
+  checkValidity() { return this.#reduceValidity(el => el.checkValidity()); }
+  reportValidity() { return this.#reduceValidity(el => el.reportValidity()); }
 }
 
-export const html = (strings, ...values) => {
-  const processedValues = values.map((value) => {
-    if (typeof value === "object" && value !== null) {
-      const uuid = crypto.randomUUID();
-      store.set(uuid, deepReactiveClone(value));
-      return uuid;
-    }
-    return value;
-  });
+export const html = (strings, ...values) => String.raw(
+  { raw: strings },
+  ...values.map(v => typeof v === "object" && v !== null ? JSON.stringify(v) : v)
+);
 
-  return String.raw({ raw: strings }, ...processedValues);
-};
 export const css = String.raw;
 
 import { navigate } from "/core/router.mjs";
+
 export class Page extends Component {
   #socket;
+  #messageListeners = new Map();
 
   connectedCallback() {
-    this.#socket?.addEventListener("message", this.#onMessage);
+    this.style.width = "100vw";
+    if (this.#socket) this.#socket.addEventListener("message", this.#onMessage);
     super.connectedCallback();
   }
 
   disconnectedCallback() {
-    if (this._onMessage && this.#socket)
-      this.#socket.removeEventListener("message", this.#onMessage);
+    if (this.#socket) this.#socket.removeEventListener("message", this.#onMessage);
     super.disconnectedCallback();
   }
 
-  setSocket(socket) {
-    this.#socket = socket;
-  }
+  setSocket(socket) { this.#socket = socket; }
 
-  dispatchMessage(type, msg) {
+  send(data) {
     if (!this.#socket || this.#socket.readyState !== WebSocket.OPEN) {
       console.warn("WebSocket disconnected; Cannot send message!");
       return;
     }
-    const payload = JSON.stringify({
-      page: this._pageId,
-      type,
-      msg,
-    });
-    console.log(`Sending: ${payload}`);
-    this.#socket.send(payload);
+    this.#socket.send(JSON.stringify(data));
   }
 
-  #messageListeners = new Map();
-
-  #onMessage(event) {
-    const payload = JSON.parse(event.data);
-    if (payload.type === "navigate") {
-      navigate(payload.msg.page, this.#socket);
-    } else {
-      for (let type = payload.type; type.includes("."); type = type.slice(0, type.lastIndexOf("."))) {
-        if (this.#messageListeners.has(type)) {
-          this.#messageListeners.get(type)(payload.msg);
-          break;
-        }
-      }
+  #onMessage = (event) => {
+    if (typeof event.data !== "string") {
+      event.data.text().then(t => this._handleMessage(t));
+      return;
     }
-  }
+    this._handleMessage(event.data);
+  };
 
-  onMessage(type, listener) {
-    this.#messageListeners.set(type, listener);
-  }
+  _handleMessage(text) {
+    const data = JSON.parse(text);
+    if (data.action === "navigate") {
+      navigate(data.page);
+      return;
+    }
+    if (this.#messageListeners.has(data.action)) {
+      this.#messageListeners.get(data.action)(data);
+    }
+  };
+
+  onMessage(action, fn) { this.#messageListeners.set(action, fn); }
+  navigate(path) { navigate(path); }
 }

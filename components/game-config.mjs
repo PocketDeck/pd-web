@@ -8,34 +8,26 @@ class GameConfig extends FormComponent {
 
   static games = ["Skipbo", "Skyjo", "UNO"];
 
-  render({ props }) {
-    const selected = (game) => (props.game === game ? "selected" : "");
+  render() {
+    const selected = (game) => (this.state.game === game ? "selected" : "");
     const options = GameConfig.games
-      .map(
-        (game) =>
-          html`<option
-            value="${game.toLowerCase()}"
-            ${selected(game.toLowerCase())}
-          >
-            ${game}
-          </option>`,
-      )
+      .map(g => html`<option value="${g.toLowerCase()}" ${selected(g.toLowerCase())}>${g}</option>`)
       .join("");
 
-    let configPass = props.config ? html`config="${props.config}"` : "";
+    let configPass = this.state.config ? html`config="${this.state.config}"` : "";
 
     return html`
       <select id="gameSelect" name="game" class="game-select" required>
         <option value="" disabled ${selected("")}>Select a Game</option>
         ${options}
       </select>
-      <config-${props.game} name="config" ${configPass}></config-${props.game}>
+      <config-${this.state.game} name="config" ${configPass}></config-${this.state.game}>
     `;
   }
 
-  styles({ props }) {
+  styles() {
     return css`
-      :host {
+      game-config {
         display: block;
         width: 100%;
       }
@@ -47,9 +39,7 @@ class GameConfig extends FormComponent {
         border: 1px solid #ccc;
         font-size: 1rem;
         outline: none;
-        transition:
-          border 0.2s,
-          box-shadow 0.2s;
+        transition: border 0.2s, box-shadow 0.2s;
         background-color: #fff;
         color: #333;
         appearance: none;
@@ -57,6 +47,7 @@ class GameConfig extends FormComponent {
         background-repeat: no-repeat;
         background-position: right 0.8rem center;
         background-size: 1rem;
+        box-sizing: border-box;
       }
 
       .game-select:focus {
@@ -73,56 +64,41 @@ class GameConfig extends FormComponent {
       }
 
       @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(5px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     `;
   }
 
   mounted() {
     this.on("change", (e) => {
-      if (e.target.closest("#gameSelect")) {
-        const defaultConfig = () =>
-          structuredClone(this.constructor.props.config);
-
-        // Update game config form
-        this.silentProps.config = defaultConfig();
-        this.props.game = e.target.value;
-
-        // Get config
-        const config =
-          this.shadowRoot.querySelector(`config-${this.props.game}`)?.props
-            .config ?? defaultConfig();
-        this.silentProps.config = structuredClone(config);
-
-        const configEvent = new CustomEvent("config-change", {
-          bubbles: true,
-          detail: { config: structuredClone(this.props.config) },
-        });
-        const selectEvent = new CustomEvent("game-select", {
-          bubbles: true,
-          detail: { game: this.props.game },
-        });
-        this.dispatchEvent(configEvent);
-        this.dispatchEvent(selectEvent);
-      }
+      if (!e.target.closest("#gameSelect")) return;
+      this.silent.config = null;
+      this.state.game = e.target.value;
+      const child = this._root.querySelector(`config-${this.state.game}`);
+      this.silent.config = structuredClone(child?.silent.config ?? {});
+      this.dispatchEvent(new CustomEvent("config-change", {
+        bubbles: true,
+        detail: { config: structuredClone(this.silent.config) },
+      }));
+      this.dispatchEvent(new CustomEvent("game-select", {
+        bubbles: true,
+        detail: { game: this.state.game },
+      }));
     });
+
     this.on("config-change", (e) => {
-      this.silentProps.config = structuredClone(e.detail.config);
-      dispatchEvent(new e.constructor(e.type, e));
+      if (e.target === this) return;
+      this.silent.config = structuredClone(e.detail.config);
+      this.dispatchEvent(new CustomEvent("config-change", {
+        bubbles: true,
+        detail: { config: structuredClone(this.silent.config) },
+      }));
     });
   }
 }
 
 await Promise.all(
-  GameConfig.games.map(
-    (game) => import(`/components/config/${game.toLowerCase()}.mjs`),
-  ),
+  GameConfig.games.map(g => import(`/components/config/${g.toLowerCase()}.mjs`)),
 );
 GameConfig.registerTag("game-config");

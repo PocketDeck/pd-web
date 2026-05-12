@@ -1,18 +1,35 @@
 let socket = null;
+let reconnectTimer = null;
+let reconnectDelay = 1000;
 
-export function initSocket() {
+function connect() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  socket = new WebSocket(`${protocol}//${location.hostname}/ws/`);
+  const port = location.port ? ':' + location.port : '';
+  socket = new WebSocket(`${protocol}//${location.hostname}${port}/ws/`);
 
   socket.addEventListener("open", () => {
-    console.log("✅ WebSocket connected");
+    reconnectDelay = 1000;
+    document.dispatchEvent(new CustomEvent("ws:connected"));
   });
 
   socket.addEventListener("close", () => {
-    console.log("❌ WebSocket closed");
-    // You might want to handle reconnection here
+    document.dispatchEvent(new CustomEvent("ws:disconnected", { detail: { willReconnect: true } }));
+    scheduleReconnect();
   });
 
+  socket.addEventListener("error", () => socket?.close());
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    connect();
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  }, reconnectDelay);
+}
+
+export function initSocket() {
+  if (!socket) connect();
   return socket;
 }
 

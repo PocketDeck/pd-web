@@ -1,52 +1,32 @@
 import { Page, html, css } from "/core/base.mjs";
-import { basicStyle } from "/styles/styles.mjs";
 import "/components/cards/skipbo.mjs";
 import "/components/card-fan.mjs";
 
 export class SkipboPage extends Page {
   static props = {
-    hand: Array.from({ length: 10 }, (_, i) => ({
-      value: Math.floor(Math.random() * 12) + 1, // Values 1-12
-      isSkipbo: Math.random() < 0.1, // 10% chance of being a Skip-Bo card
+    hand: Array.from({ length: 10 }, () => ({
+      value: Math.floor(Math.random() * 12) + 1,
+      isSkipbo: Math.random() < 0.1,
     })),
   };
 
   styles() {
     return css`
-      ${basicStyle}
-      :host {
-        background: linear-gradient(155deg, #5a8cff, #2e2e2e);
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+      skipbo-page { background: linear-gradient(155deg, #5a8cff, #2e2e2e); }
     `;
   }
 
-  render({ props }) {
-    const cardsHtml = (props.hand ?? [])
-      .map((card) => {
-        const value = card.value ?? 1;
-        const isSkipbo = card.isSkipbo ?? false;
-        return html`<skipbo-card
-          value="${value}"
-          ?is-skipbo="${isSkipbo}"
-        ></skipbo-card>`;
-      })
-      .join("");
-
-    return html`
-      <div class="game-container">
-        <h1>Skip-Bo</h1>
-        <card-fan>${cardsHtml}</card-fan>
-      </div>
-    `;
+  render() {
+    const cards = (this.state.hand ?? []).map(c => ({
+      tag: "skipbo-card", value: c.value, isSkipbo: c.isSkipbo,
+    }));
+    return html`<card-fan cards='${cards}'></card-fan>`;
   }
 
   mounted() {
     this.on("card-click", (e) => {
-      console.log("Card clicked:", e.detail.index);
+      const idx = e.detail.card.closest(".card-wrapper")?.dataset.index;
+      console.log("Card clicked:", idx);
     });
   }
 }
