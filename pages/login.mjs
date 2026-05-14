@@ -14,6 +14,8 @@ class LoginPage extends Page {
     const mode = this.state.mode;
     const activeClass = (tab) => (mode === tab ? "active" : "");
 
+    const configAttr = this.state.config ? `config='${JSON.stringify(this.state.config)}'` : "";
+
     const header = html`
       <h1>Game Room</h1>
       <div class="tab-container">
@@ -35,7 +37,7 @@ class LoginPage extends Page {
           <div><form>
             <h2>Create a Room</h2>
             <input type="text" name="Name" placeholder="Enter your name" value="${this.state.name}" required />
-            <game-config name="Config" game="${this.state.game}" config="${this.state.config}"></game-config>
+            <game-config name="Config" game="${this.state.game}" ${configAttr}></game-config>
             <button type="submit">Create</button>
           </form></div>`
         : "";
@@ -45,7 +47,16 @@ class LoginPage extends Page {
 
   styles() {
     return css`
-      login-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+      :host {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 100vh; width: 100vw;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+      }
+      h1 {
+        text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 1rem;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
       .tab-container { display: flex; justify-content: center; margin-bottom: 2rem; gap: 1rem; }
       .tab {
         padding: 0.75rem 2rem; cursor: pointer; font-weight: 600; color: #fff;
@@ -87,16 +98,15 @@ class LoginPage extends Page {
   }
 
   mounted() {
+    const _target = (e) => e.composedPath().find(el => el.nodeType === 1);
+
     this.on("click", (e) => {
-      const tab = e.target.closest("[data-tab]");
-      if (tab) {
-        this.silent.mode = tab.dataset.tab;
-        this._update();
-      }
+      const tab = _target(e)?.closest("[data-tab]");
+      if (tab) this.state.mode = tab.dataset.tab;
     });
 
     this.on("change", (e) => {
-      const input = e.target.closest("input[name]");
+      const input = _target(e)?.closest("input[name]");
       if (!input) return;
       this.silent[input.name === "Room ID" ? "room" : input.name.toLowerCase()] = input.value;
     });
@@ -106,7 +116,9 @@ class LoginPage extends Page {
       if (this.state.mode === "join") {
         this.send({ action: "join", name: this.state.name, roomID: this.state.room });
       } else {
-        this.send({ action: "create", name: this.state.name, game: this.state.game });
+        const msg = { action: "create", name: this.state.name, game: this.state.game };
+        if (this.silent.config) msg.config = this.silent.config;
+        this.send(msg);
       }
     });
 

@@ -8,20 +8,19 @@ class GameConfig extends FormComponent {
 
   static games = ["Skipbo", "Skyjo", "UNO"];
 
-  render() {
-    const selected = (game) => (this.state.game === game ? "selected" : "");
+  render(state) {
+    const selected = (game) => (state.game === game ? "selected" : "");
     const options = GameConfig.games
       .map(g => html`<option value="${g.toLowerCase()}" ${selected(g.toLowerCase())}>${g}</option>`)
       .join("");
-
-    let configPass = this.state.config ? html`config="${this.state.config}"` : "";
+    const configAttr = state.config ? `config='${JSON.stringify(state.config)}'` : "";
 
     return html`
       <select id="gameSelect" name="game" class="game-select" required>
         <option value="" disabled ${selected("")}>Select a Game</option>
         ${options}
       </select>
-      <config-${this.state.game} name="config" ${configPass}></config-${this.state.game}>
+      <config-${state.game} name="config" ${configAttr}></config-${state.game}>
     `;
   }
 
@@ -75,8 +74,12 @@ class GameConfig extends FormComponent {
       if (!e.target.closest("#gameSelect")) return;
       this.silent.config = null;
       this.state.game = e.target.value;
-      const child = this._root.querySelector(`config-${this.state.game}`);
-      this.silent.config = structuredClone(child?.silent.config ?? {});
+      const child = this.shadowRoot.querySelector(`config-${this.state.game}`);
+      if (child) {
+        this.silent.config = Object.fromEntries(
+          Object.keys(child.constructor.props).map(k => [k, child.silent[k]])
+        );
+      }
       this.dispatchEvent(new CustomEvent("config-change", {
         bubbles: true,
         detail: { config: structuredClone(this.silent.config) },

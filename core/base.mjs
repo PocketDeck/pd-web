@@ -76,6 +76,7 @@ export class Component extends HTMLElement {
 
   constructor() {
     super();
+    this.attachShadow({ mode: "open" });
     this.silent = structuredClone(this.constructor.props);
     this.state = deepReactive(this.silent, () => this.#requestUpdate());
   }
@@ -92,7 +93,6 @@ export class Component extends HTMLElement {
 
   connectedCallback() {
     this.#mounted = true;
-    if (!this._root) this._root = this.appendChild(document.createElement("div"));
     this._update();
     this.mounted();
   }
@@ -117,19 +117,19 @@ export class Component extends HTMLElement {
   }
 
   _update() {
-    _patch(this._root, `<style>${this.styles()}</style>${this.render()}`);
+    _patch(this.shadowRoot, `<style>${this.styles(this.state)}</style>${this.render(this.state)}`);
   }
 
-  render() { return ""; }
-  styles() { return ""; }
+  render(state) { return ""; }
+  styles(state) { return ""; }
   mounted() {}
   unmounted() {}
 
   on(type, listener, options) {
     if (this.#listeners.has(type)) {
-      this.removeEventListener(type, this.#listeners.get(type));
+      this.shadowRoot.removeEventListener(type, this.#listeners.get(type));
     }
-    this.addEventListener(type, listener, options);
+    this.shadowRoot.addEventListener(type, listener, options);
     this.#listeners.set(type, listener);
   }
 
@@ -159,7 +159,7 @@ export class FormComponent extends Component {
 
   #getAllFormControls() {
     const result = [];
-    const walker = document.createTreeWalker(this._root, NodeFilter.SHOW_ELEMENT);
+    const walker = document.createTreeWalker(this.shadowRoot, NodeFilter.SHOW_ELEMENT);
     let node;
     while ((node = walker.nextNode())) {
       if (node instanceof FormComponent) {
@@ -244,5 +244,4 @@ export class Page extends Component {
   };
 
   onMessage(action, fn) { this.#messageListeners.set(action, fn); }
-  navigate(path) { navigate(path); }
 }

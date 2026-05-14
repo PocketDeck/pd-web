@@ -34,11 +34,13 @@ export class Card extends Component {
   }
 
   renderFace() { return ""; }
+  renderBack() { return ""; }
 
   render() {
+    const fd = !this.state.faceup || this.hasAttribute("face-down");
     return html`
-      <div class="card">
-        ${this.state.faceup ? html`<div class="face">${this.renderFace()}</div>` : ""}
+      <div class="card${fd ? " face-down" : ""}">
+        ${fd ? this.renderBack() : html`<div class="face">${this.renderFace()}</div>`}
       </div>
     `;
   }
@@ -46,7 +48,7 @@ export class Card extends Component {
   mounted() {
     this.on("click", () => {
       this.dispatchEvent(new CustomEvent("card-click", {
-        bubbles: true,
+        bubbles: true, composed: true,
         detail: { card: this },
       }));
     });

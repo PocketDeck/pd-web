@@ -1,14 +1,16 @@
-import { Component, css } from "/core/base.mjs";
+import { Component, html, css } from "/core/base.mjs";
+import { makeDraggable } from "/core/drag.mjs";
 
 function fanLayout(container, curvatureDeg) {
   const cards = Array.from(container.children);
   const n = cards.length;
   cards.forEach((card, i) => {
     const center = (n - 1) / 2;
-    const angle = curvatureDeg * ((i - center) / n);
+    const angle = curvatureDeg * ((i - center) / (n || 1));
     card.style.setProperty("--angle", `${angle}deg`);
     card.dataset.index = i;
-    card.style.zIndex = i;
+    card.style.setProperty("--z", i);
+    if (card.firstElementChild) card.firstElementChild.dataset.index = i;
   });
 }
 
@@ -21,9 +23,17 @@ function interpolateAngle(angles, i) {
 }
 
 function getAngles(container) {
-  return Array.from(container.children).map(
+  return Array.from(container.children).filter(c => c.classList.contains("card-slot")).map(
     c => parseFloat(c.style.getPropertyValue("--angle")),
   );
+}
+
+function getCardData(slot) {
+  const el = slot?.firstElementChild;
+  if (!el) return { tag: "div" };
+  const data = { tag: el.tagName.toLowerCase() };
+  for (const attr of el.attributes) data[attr.name] = attr.value;
+  return data;
 }
 
 function buildCard(cardData) {
@@ -38,295 +48,249 @@ function buildCard(cardData) {
   return slot;
 }
 
-function getCardData(slot) {
-  const el = slot?.firstElementChild;
-  if (!el) return { tag: "div" };
-  const data = { tag: el.tagName.toLowerCase() };
-  for (const attr of el.attributes) data[attr.name] = attr.value;
-  return data;
-}
-
 export class CardFan extends Component {
-  static props = {
-    cards: [],
-    curvature: 70,
-  };
+  static props = { curvature: 70 };
 
   model = { insert: null };
 
-  #dragIdx = -1;
-  #dragData = null;
-  #dragW = 0;
-  #dragH = 0;
-  #stash = null;
-  #ghost = null;
-  #ghostCx = 0;
-  #ghostCy = 0;
-  #dropIdx = -1;
+  #dragState = null;
   #indicator = null;
-  #zonesRoot = null;
+
+  render() {
+    return html`<div id="fan"></div><div id="drop-zones"></div>`;
+  }
 
   _update() {
-    const root = this._root;
-    let style = root.querySelector("style");
-    if (!style) {
-      style = document.createElement("style");
-      root.appendChild(style);
+    if (!this.shadowRoot.getElementById("fan")) {
+      super._update();
+      return;
     }
-    style.textContent = this.styles();
-
-    let fan = root.querySelector("#fan");
-    if (!fan) {
-      fan = document.createElement("div");
-      fan.id = "fan";
-      root.appendChild(fan);
-    }
-    this._fan = fan;
-
-    if (this.#indicator && this.#indicator.parentNode === fan) {
-      this.#indicator.remove();
-    }
-
-    this.#reconcile();
-
-    if (this.#indicator && this.#dropIdx >= 0) {
-      const ref = fan.children[this.#dropIdx] ?? null;
-      fan.insertBefore(this.#indicator, ref);
-    }
-
-    fanLayout(fan, this.state.curvature);
-  }
-
-  #reconcile() {
-    const cards = this.state.cards;
-
-    if (this.#dragIdx >= 0) {
-      const want = cards.length - 1;
-      while (this._fan.children.length > want) this._fan.lastChild.remove();
-      let di = 0;
-      for (let si = 0; si < cards.length; si++) {
-        if (si === this.#dragIdx) continue;
-        const ex = this._fan.children[di];
-        if (ex && ex.classList.contains("card-slot")) {
-          this.#syncSlot(ex, cards[si]);
-        } else {
-          const slot = buildCard(cards[si]);
-          if (ex) ex.replaceWith(slot);
-          else this._fan.appendChild(slot);
-        }
-        di++;
-      }
-    } else {
-      while (this._fan.children.length > cards.length) this._fan.lastChild.remove();
-      for (let i = 0; i < cards.length; i++) {
-        const ex = this._fan.children[i];
-        if (ex && ex.classList.contains("card-slot")) {
-          this.#syncSlot(ex, cards[i]);
-        } else {
-          const slot = buildCard(cards[i]);
-          if (ex) ex.replaceWith(slot);
-          else this._fan.appendChild(slot);
-        }
-      }
-    }
-  }
-
-  #syncSlot(slot, data) {
-    const tag = data.tag ?? "div";
-    let el = slot.firstElementChild;
-    if (!el || el.tagName.toLowerCase() !== tag) {
-      el = document.createElement(tag);
-      slot.innerHTML = "";
-      slot.appendChild(el);
-    }
-    for (const [k, v] of Object.entries(data)) {
-      if (k !== "tag") el.setAttribute(k, v);
-    }
+    const style = this.shadowRoot.querySelector("style");
+    if (style) style.textContent = this.styles(this.state);
   }
 
   mounted() {
-    let pending = null;
-    const onMove = (e) => {
-      if (!pending) return;
-      const dx = e.clientX - pending.x;
-      const dy = e.clientY - pending.y;
-      if (dx * dx + dy * dy > 25) {
-        this.#startDrag(pending.idx, pending.slot, e);
-        pending = null;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-      }
-    };
-    const onUp = () => { pending = null; document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
-    this._root.addEventListener("pointerdown", (e) => {
-      const slot = e.target.closest(".card-slot");
-      if (!slot || !this._fan?.contains(slot)) return;
-      if (this.#dragIdx >= 0) return;
+    this.#installSlots();
+    this.#setupDrag();
+  }
+
+  #getSlots() {
+    const fan = this.shadowRoot?.getElementById("fan");
+    return fan ? Array.from(fan.children).filter(c => c.classList.contains("card-slot")) : [];
+  }
+
+  #installSlots() {
+    const fan = this.shadowRoot.getElementById("fan");
+    for (const child of [...this.children]) {
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+      slot.appendChild(child);
+      fan.appendChild(slot);
+    }
+    fanLayout(fan, this.state.curvature);
+  }
+
+  #setupDrag() {
+    for (const slot of this.#getSlots()) this.#addSlotListeners(slot);
+  }
+
+  #addSlotListeners(slot) {
+    const drag = makeDraggable(slot);
+
+    drag.onDragStart(() => {
       const idx = parseInt(slot.dataset.index);
       if (isNaN(idx)) return;
-      pending = { idx, slot, x: e.clientX, y: e.clientY };
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
+      const r = slot.getBoundingClientRect();
+      this.#dragState = { idx, data: getCardData(slot), dropIdx: -1, dragW: r.width, dragH: r.height };
+      slot._skipAbort = true;
+      fanLayout(this.shadowRoot.getElementById("fan"), this.state.curvature);
+      this.#populateDropZones();
+    });
+
+    drag.onDragMove((e) => {
+      if (!this.#dragState) return;
+      const idx = this.#findDropTarget(e.clientX, e.clientY);
+      if (idx === this.#dragState.dropIdx) return;
+      this.#removeIndicator();
+      this.#dragState.dropIdx = idx;
+      if (idx >= 0) this.#positionIndicator(idx);
+    });
+
+    drag.onDragStop(() => {
+      if (!this.#dragState) return;
+      const from = this.#dragState.idx;
+      const to = this.#dragState.dropIdx;
+      this.#removeIndicator();
+      this.#clearDropZones();
+
+      if (to >= 0 && to !== from) {
+        this.dispatchEvent(new CustomEvent("fan-insert", {
+          bubbles: true, composed: true,
+          detail: { from, to },
+        }));
+
+        const commit = () => {
+          this.#placeCard(slot, to);
+          slot.finalizeDrop?.();
+          this.#dragState = null;
+        };
+
+        if (this.model.insert) {
+          const promise = this.model.insert(from, to);
+          if (promise && typeof promise.then === "function") {
+            promise.then(commit).catch(() => { this.#placeCard(slot, from); slot.finalizeDrop?.(); this.#dragState = null; });
+          } else {
+            commit();
+          }
+        } else {
+          commit();
+        }
+      } else {
+        this.#placeCard(slot, from);
+        slot.finalizeDrop?.();
+        this.#dragState = null;
+      }
     });
   }
 
-  #startDrag(idx, slot, e) {
-    e.preventDefault();
-    this.#dragIdx = idx;
-    this.#dragData = getCardData(slot);
-    this.#stash = slot;
-
-    const rect = slot.getBoundingClientRect();
-    this.#dragW = rect.width;
-    this.#dragH = rect.height;
-    this.#ghost = document.createElement("div");
-    this.#ghost.className = "drag-ghost";
-    this.#ghost.style.width = rect.width + "px";
-    this.#ghost.style.height = rect.height + "px";
-    this.#ghost.appendChild(buildCard(this.#dragData));
-    document.body.appendChild(this.#ghost);
-    this.#ghostCx = rect.width / 2;
-    this.#ghostCy = rect.height / 2;
-    this.#moveGhost(e.clientX, e.clientY);
-
-    slot.remove();
-    fanLayout(this._fan, this.state.curvature);
-
-    this.#buildZones();
-    document.addEventListener("pointermove", this.#pm);
-    document.addEventListener("pointerup", this.#pu);
-  }
-
-  #pm = (e) => this.#onMove(e);
-  #pu = (e) => this.#onUp(e);
-
-  #moveGhost(cx, cy) {
-    if (!this.#ghost) return;
-    this.#ghost.style.transform = `translate(${cx - this.#ghostCx}px, ${cy - this.#ghostCy}px)`;
-  }
-
-  #onMove(e) {
-    if (!this.#ghost) return;
-    this.#moveGhost(e.clientX, e.clientY);
-    const hits = document.elementsFromPoint(e.clientX, e.clientY);
-    const zone = hits.find(el => el.classList.contains("drop-zone"));
-    const zi = zone ? parseInt(zone.dataset.index) : -1;
-    if (zi !== this.#dropIdx) this.#switchDropZone(zi);
-  }
-
-  #onUp() {
-    const droppedIdx = this.#dropIdx;
-    const dragIdx = this.#dragIdx;
-
-    if (droppedIdx >= 0) {
-      this.dispatchEvent(new CustomEvent("fan-insert", {
-        bubbles: true,
-        detail: { from: dragIdx, to: droppedIdx },
-      }));
-      if (this.model.insert) {
-        this.model.insert(dragIdx, droppedIdx);
-      }
-      // Card was removed from fan, now stashed.
-      // Server response will trigger _update with new hand order.
-      this.#stash = null;
-    } else {
-      // Abort: put the card back
-      if (this.#stash) {
-        const ref = this._fan.children[Math.min(dragIdx, this._fan.children.length)] ?? null;
-        this._fan.insertBefore(this.#stash, ref);
-        this.#stash = null;
-      }
+  #findDropTarget(x, y) {
+    const zonesRoot = this.shadowRoot?.getElementById("drop-zones");
+    if (!zonesRoot || zonesRoot.children.length === 0) return -1;
+    for (const zone of zonesRoot.children) {
+      const r = zone.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return parseInt(zone.dataset.index);
     }
-
-    this.#cleanup();
+    return -1;
   }
 
-  #cleanup() {
-    this.#dragIdx = -1;
-    this.#dropIdx = -1;
-    if (this.#ghost) { this.#ghost.remove(); this.#ghost = null; }
-    if (this.#indicator) { this.#indicator.remove(); this.#indicator = null; }
-    this.#destroyZones();
-    document.removeEventListener("pointermove", this.#pm);
-    document.removeEventListener("pointerup", this.#pu);
-    this._update();
-  }
-
-  #buildZones() {
-    this.#destroyZones();
-    this.#zonesRoot = document.createElement("div");
-    this.#zonesRoot.id = "drop-zones";
-    this.#zonesRoot.classList.add("active");
-    this._root.appendChild(this.#zonesRoot);
-
-    const fan = this._fan;
-    const n = fan.children.length;
+  #populateDropZones() {
+    const zonesRoot = this.shadowRoot.getElementById("drop-zones");
+    zonesRoot.innerHTML = "";
+    zonesRoot.classList.add("dragging");
+    const fan = this.shadowRoot.getElementById("fan");
+    const slots = this.#getSlots();
     const angles = getAngles(fan);
-
-    for (let i = 0; i <= n; i++) {
-      const angle = interpolateAngle(angles, i);
+    const w = this.#dragState?.dragW ?? 0;
+    const h = this.#dragState?.dragH ?? 0;
+    for (let i = 0; i <= slots.length; i++) {
       const zone = document.createElement("div");
       zone.className = "drop-zone";
-      zone.style.setProperty("--angle", `${angle}deg`);
-      zone.style.width = this.#dragW + "px";
-      zone.style.height = this.#dragH + "px";
+      zone.style.setProperty("--angle", `${interpolateAngle(angles, i)}deg`);
+      zone.style.width = w + "px";
+      zone.style.height = h + "px";
       zone.dataset.index = i;
-      zone.style.zIndex = i;
-      this.#zonesRoot.appendChild(zone);
+      zonesRoot.appendChild(zone);
     }
   }
 
-  #destroyZones() {
-    if (this.#zonesRoot) { this.#zonesRoot.remove(); this.#zonesRoot = null; }
+  #clearDropZones() {
+    const zonesRoot = this.shadowRoot.getElementById("drop-zones");
+    if (zonesRoot) { zonesRoot.classList.remove("dragging"); zonesRoot.innerHTML = ""; }
   }
 
-  #switchDropZone(idx) {
-    if (this.#indicator) { this.#indicator.remove(); this.#indicator = null; }
-    this.#dropIdx = idx;
-    if (idx < 0) {
-      fanLayout(this._fan, this.state.curvature);
-      return;
-    }
-    this.#indicator = buildCard(this.#dragData ?? getCardData(this._fan.children[0]));
+  #positionIndicator(idx) {
+    this.#removeIndicator();
+    const fan = this.shadowRoot.getElementById("fan");
+    if (idx < 0 || idx > fan.children.length) return;
+    this.#indicator = buildCard(this.#dragState?.data ?? { tag: "div" });
+    this.#indicator.classList.remove("card-slot");
     this.#indicator.classList.add("drop-indicator");
-    const ref = this._fan.children[idx] ?? null;
-    this._fan.insertBefore(this.#indicator, ref);
-    fanLayout(this._fan, this.state.curvature);
+    const ref = fan.children[idx] ?? null;
+    fan.insertBefore(this.#indicator, ref);
+    fanLayout(fan, this.state.curvature);
+  }
+
+  #removeIndicator() {
+    if (this.#indicator) {
+      this.#indicator.remove();
+      this.#indicator = null;
+      const fan = this.shadowRoot.getElementById("fan");
+      if (fan) fanLayout(fan, this.state.curvature);
+    }
+  }
+
+  #placeCard(slot, idx) {
+    const fan = this.shadowRoot.getElementById("fan");
+    const ref = fan.children[Math.min(idx, fan.children.length)] ?? null;
+    fan.insertBefore(slot, ref);
+    fanLayout(fan, this.state.curvature);
+  }
+
+  addCards(cardDataArray) {
+    const fan = this.shadowRoot.getElementById("fan");
+    for (const cardData of cardDataArray) {
+      const slot = buildCard(cardData);
+      fan.appendChild(slot);
+      this.#addSlotListeners(slot);
+    }
+    fanLayout(fan, this.state.curvature);
+  }
+
+  removeCard(idx) {
+    const slots = this.#getSlots();
+    const slot = slots[idx];
+    if (slot) slot.remove();
+    fanLayout(this.shadowRoot.getElementById("fan"), this.state.curvature);
+  }
+
+  insertCard(idx, cardData) {
+    const fan = this.shadowRoot.getElementById("fan");
+    const slot = buildCard(cardData);
+    const slots = this.#getSlots();
+    const ref = slots[idx] ?? null;
+    fan.insertBefore(slot, ref);
+    this.#addSlotListeners(slot);
+    fanLayout(fan, this.state.curvature);
   }
 
   styles() {
     return css`
-      card-fan {
+      :host {
         --raise: -225%;
         --hover-raise: -42.5%;
+        --zone-w: 68px;
+        --zone-h: 100px;
         display: grid;
         width: 100%;
+        height: 200px;
+        touch-action: none;
+        user-select: none;
       }
 
       #fan, #drop-zones {
         grid-column: 1 / 2;
-        position: absolute;
-        width: 100%;
-        display: flex;
-        justify-content: center;
+        grid-row: 1 / 2;
       }
 
-      #fan { z-index: 2; }
-      #drop-zones { z-index: 5; pointer-events: none; }
-      #drop-zones.active { pointer-events: auto; }
+      #fan {
+        position: relative;
+        transform-style: preserve-3d;
+      }
 
-      .card-slot, .drop-zone {
+      #drop-zones {
+        position: relative;
+        pointer-events: none;
+      }
+
+      #drop-zones.dragging {
+        z-index: 9999;
+      }
+
+      .card-slot, .drop-zone, .drop-indicator {
         position: absolute;
         bottom: 0;
+        left: 50%;
         transform-origin: 50% 100%;
         --angle: 0deg;
-        transform: translateY(calc(-1 * var(--raise))) rotate(var(--angle)) translateY(var(--raise));
+        transform: translateX(-50%) translateY(calc(-1 * var(--raise))) rotate(var(--angle)) translateY(var(--raise));
+        touch-action: none;
       }
 
       .card-slot {
         cursor: pointer;
         transition: transform 300ms;
-        z-index: 0;
+        z-index: var(--z, 0);
+        transform-style: preserve-3d;
       }
 
       .card-slot > * {
@@ -337,6 +301,7 @@ export class CardFan extends Component {
 
       .card-slot:hover > * {
         transform: translateY(var(--hover-raise)) rotate(calc(-1 * var(--angle))) scale(1.2);
+        translate: 0 0 1px;
       }
 
       .drop-zone {
@@ -347,25 +312,14 @@ export class CardFan extends Component {
       .drop-indicator {
         opacity: 0.55;
         pointer-events: none;
+        z-index: var(--z, 0);
       }
 
-      .drag-ghost {
-        position: fixed;
-        top: 0;
-        left: 0;
+      .drop-indicator > * {
+        display: block;
         pointer-events: none;
-        z-index: 10000;
       }
 
-      .drag-ghost > .card-slot {
-        position: static;
-        transform: none;
-      }
-
-      .drag-ghost > .card-slot > * {
-        transform: scale(1.1);
-        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.35));
-      }
     `;
   }
 }

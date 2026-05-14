@@ -1,6 +1,18 @@
 import { html, css } from "/core/base.mjs";
 import { Card } from "/components/card.mjs";
 
+export function decodeCardId(id) {
+  if (id >= 52) {
+    return { kind: id === 52 ? "wild" : "wilddraw4", color: "black", value: 0 };
+  }
+  const colors = ["red", "blue", "green", "yellow"];
+  const color = colors[Math.floor(id / 13)];
+  const ki = id % 13;
+  if (ki <= 9) return { color, kind: "number", value: ki };
+  const specials = ["skip", "reverse", "draw2"];
+  return { color, kind: specials[ki - 10], value: 0 };
+}
+
 export class UnoCard extends Card {
   static props = {
     ...Card.props,
@@ -64,6 +76,29 @@ export class UnoCard extends Card {
       .pip.green { background: #4caf50; }
       .pip.blue { background: #2196f3; }
       .pip.yellow { background: #ffb300; }
+
+      .card.face-down {
+        background: linear-gradient(145deg, #1c1c4a, #0a0a20);
+        border-radius: 12px;
+        border: 2px solid rgba(255,255,255,0.12);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        overflow: hidden;
+      }
+
+      .card.face-down::before {
+        content: ""; position: absolute; inset: 6px;
+        border-radius: 8px;
+        border: 1.5px solid rgba(255,255,255,0.06);
+      }
+
+      .card.face-down::after {
+        content: "UNO";
+        position: absolute; inset: 0;
+        display: grid; place-items: center;
+        font: 800 1.1rem system-ui, sans-serif;
+        color: rgba(255,255,255,0.08);
+        letter-spacing: 0.2em;
+      }
     `;
   }
 
@@ -86,7 +121,7 @@ export class UnoCard extends Card {
     };
     const c = palette[color] || palette.red;
     const label = this.#label();
-    const isWild = type === "wild" || type === "wild4";
+    const isWild = type === "wild" || type === "wild4" || type === "wilddraw4";
 
     return html`
       <div class="banner" style="background:${c}"></div>
@@ -110,6 +145,8 @@ export class UnoCard extends Card {
         `}
     `;
   }
+
+  renderBack() { return ""; }
 }
 
 UnoCard.registerTag("uno-card");

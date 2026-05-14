@@ -27,7 +27,16 @@ class LobbyPage extends Page {
 
   styles() {
     return css`
-      lobby-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+      :host {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 100vh; width: 100vw;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+      }
+      h1 {
+        text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 1rem;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
       h3.lobby-id-container { color: #fff; margin-bottom: 1rem; font-weight: 500; }
       .lobby-id { font-weight: 700; background: rgba(255, 255, 255, 0.15); padding: 0.25rem 0.75rem; border-radius: 8px; letter-spacing: 2px; }
       h2 { color: #fff; margin-bottom: 1rem; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); }
@@ -56,10 +65,11 @@ class LobbyPage extends Page {
 
   mounted() {
     this.on("click", (e) => {
-      if (e.target.closest(".ready-button")) {
+      const root = e.composedPath().find(el => el.nodeType === 1);
+      if (root?.closest(".ready-button")) {
         this.send({ action: this.state.ready ? "unready" : "ready" });
       }
-      if (e.target.closest(".leave-button")) {
+      if (root?.closest(".leave-button")) {
         this.send({ action: "leave" });
       }
     });

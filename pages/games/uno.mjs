@@ -1,57 +1,166 @@
 import { Page, html, css } from "/core/base.mjs";
 import "/components/cards/uno.mjs";
+import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
 
 export class UnoPage extends Page {
   static props = {
-    game: null,
+    game: {},
     hand: [
-      { color: "red", kind: "number", value: 7 },
-      { color: "blue", kind: "number", value: 3 },
-      { color: "yellow", kind: "skip" },
-      { color: "green", kind: "reverse" },
-      { color: "red", kind: "draw2" },
-      { color: "blue", kind: "number", value: 9 },
-      { color: "black", kind: "wild" },
-      { color: "black", kind: "wilddraw4" },
-      { color: "yellow", kind: "number", value: 5 },
-      { color: "green", kind: "number", value: 1 },
+      { id: 7 },
+      { id: 16 },
+      { id: 22 },
+      { id: 28 },
+      { id: 6 },
+      { id: 22 },
+      { id: 52 },
+      { id: 53 },
+      { id: 18 },
+      { id: 27 },
     ],
   };
 
   #pendingPlay = null;
+  #pendingReorder = null;
   #playerMap = {};
+
+  #opponentHtml(players, turnId) {
+    return (players ?? []).map(p => {
+      const active = p.id === turnId ? " active" : "";
+      const name = this.#playerName(p.id);
+      const count = p.card_count ?? 0;
+      const shown = Math.min(count, 3);
+      let mini = "";
+      for (let i = 0; i < shown; i++) {
+        mini += "<div class=\"mini-card\"></div>";
+      }
+      return `<div class="opponent${active}"><div class="avatar"></div><div><div class="name">${name}</div><div class="hand-row"><div class="mini-fan">${mini}</div><span class="badge">${count}</span></div></div></div>`;
+    }).join("");
+  }
 
   styles() {
     return css`
-      uno-page {
-        background: linear-gradient(155deg, #6a9b75, #2e2e2e);
+      :host {
+        background: radial-gradient(ellipse at 50% 30%, #3a3a6a, #252540);
         display: flex; flex-direction: column; height: 100vh;
+        color: #fff; font-family: system-ui, -apple-system, sans-serif;
+        overflow: hidden;
       }
+
+      #opponents {
+        display: flex; gap: 1rem; padding: 1rem 2rem;
+        flex-shrink: 0; justify-content: center; flex-wrap: wrap;
+      }
+
+      .opponent {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 14px; padding: 0.75rem 1.25rem;
+        display: flex; align-items: center; gap: 0.75rem;
+        transition: border-color .35s, box-shadow .35s, background .35s;
+      }
+
+      .opponent.active {
+        border-color: #ffb300;
+        box-shadow: 0 0 24px rgba(255,179,0,0.15);
+        background: rgba(255,179,0,0.06);
+      }
+
+      .avatar {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: rgba(255,255,255,0.06);
+        border: 2px solid rgba(255,255,255,0.08);
+        flex-shrink: 0;
+      }
+
+      .opponent.active .avatar {
+        border-color: #ffb300;
+        box-shadow: 0 0 10px rgba(255,179,0,0.3);
+      }
+
+      .name {
+        font-size: 1.1rem; font-weight: 600; white-space: nowrap;
+        color: rgba(255,255,255,0.75);
+      }
+
+      .opponent.active .name { color: #ffb300; }
+
+      .hand-row {
+        display: flex; align-items: center; gap: 0.375rem; margin-top: 0.2rem;
+      }
+
+      .mini-fan { display: flex; align-items: center; }
+
+      .mini-card {
+        width: 16px; height: 24px;
+        background: linear-gradient(145deg, #252560, #0f0f35);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 2px; margin-right: -8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      }
+
+      .mini-card:last-child { margin-right: 0; }
+
+      .badge {
+        font-size: 0.9rem; font-weight: 700;
+        background: rgba(255,255,255,0.06);
+        padding: 0.125rem 0.4rem; border-radius: 999px;
+        color: rgba(255,255,255,0.45);
+        min-width: 1.25rem; text-align: center;
+      }
+
       #board {
-        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 1rem; color: #fff;
+        flex: 1; display: flex;
+        align-items: center; justify-content: center;
+        padding: 1rem;
+        min-height: 0;
       }
+
       #play-area {
-        display: flex; gap: 2rem; align-items: center; margin: 2rem 0;
+        display: flex; gap: 2.5rem; align-items: center;
       }
-      #draw-pile { cursor: pointer; position: relative; }
-      #draw-pile .count {
-        position: absolute; bottom: -1.5rem; left: 50%; transform: translateX(-50%);
-        font-size: 0.9rem; color: rgba(255,255,255,0.7);
+
+      .pile { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
+
+      #draw-pile { cursor: pointer; }
+
+      .dir {
+        font-size: 1.5rem; color: rgba(255,255,255,0.1);
+        user-select: none; font-weight: 300;
       }
-      #info { text-align: center; margin: 1rem 0; }
-      #info .turn { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
-      .players { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-      .player {
-        background: rgba(255,255,255,0.1); padding: 0.25rem 0.75rem;
-        border-radius: 999px; font-size: 0.85rem;
+
+      #turn-indicator {
+        font-size: 1.25rem;
+        color: rgba(255,255,255,0.35); font-weight: 500;
+        padding: 0.75rem;
+        text-align: center;
       }
-      .game-over {
-        text-align: center; margin-top: 2rem; font-size: 1.5rem; font-weight: 700;
+
+      #turn-indicator strong {
+        color: #ffb300; font-weight: 700;
       }
-      .prompt { color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-top: 2rem; }
-      card-fan { position: fixed; bottom: 0; left: 0; right: 0; }
+
+      card-fan {
+        height: 200px; flex-shrink: 0;
+        margin-top: -200px;
+      }
+
+      .game-over { text-align: center; }
+
+      .game-over .title {
+        font-size: 2rem; font-weight: 800; margin-bottom: 0.375rem;
+        background: linear-gradient(135deg, #ffb300, #ff6b00);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .game-over .winner {
+        font-size: 1.1rem; color: rgba(255,255,255,0.5);
+      }
+
+      .prompt {
+        color: rgba(255,255,255,0.25); font-size: 0.95rem;
+      }
     `;
   }
 
@@ -59,59 +168,83 @@ export class UnoPage extends Page {
     return this.#playerMap[id] ?? `Player ${id}`;
   }
 
+  #cardAttrs(card) {
+    if (!card) return { color: "black", type: "number", value: "" };
+    const info = decodeCardId(card.id);
+    return {
+      color: card.color || info.color || "black",
+      type: info.kind || "number",
+      value: String(info.value ?? ""),
+    };
+  }
+
   render() {
     const g = this.state.game;
     const hand = this.state.hand ?? [];
-    const cards = hand.map(c => ({
-      tag: "uno-card",
-      color: c.color || "black",
-      value: String(c.value ?? ""),
-      type: c.kind || "number",
-    }));
+
+    if (!g) {
+      return html`
+        <div id="board"><div class="prompt">Join a game to start playing</div></div>
+      `;
+    }
+
+    if (g.state === "over") {
+      return html`
+        <div id="opponents">${this.#opponentHtml(g.players, g.winner)}</div>
+        <div id="board">
+          <div class="game-over">
+            <div class="title">Game Over</div>
+            <div class="winner">${this.#playerName(g.winner)} wins!</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const cardsHtml = hand.map(c => {
+      const info = decodeCardId(c.id);
+      return `<uno-card color="${info.color}" value="${info.value ?? ""}" type="${info.kind}"></uno-card>`;
+    }).join("");
+
+    const top = this.#cardAttrs(g.topCard);
 
     return html`
+      <div id="opponents">${this.#opponentHtml(g.players, g.turn)}</div>
+      <div id="turn-indicator"><strong>${this.#playerName(g.turn)}</strong>'s turn</div>
       <div id="board">
-        ${g
-          ? g.state === "over"
-            ? html`
-              <div class="game-over">
-                <div>Game Over!</div>
-                <div>Winner: ${this.#playerName(g.winner)}</div>
-              </div>`
-            : html`
-              <div id="play-area">
-                <div id="draw-pile" class="pile" data-action="draw">
-                  <uno-card face-down></uno-card>
-                  <span class="count">${g.drawPile}</span>
-                </div>
-                <div id="discard">
-                  <uno-card color="${g.topCard?.color}" type="${g.topCard?.kind}" value="${g.topCard?.value}"></uno-card>
-                </div>
-              </div>
-              <div id="info">
-                <div class="turn">${this.#playerName(g.turn)}'s turn</div>
-                <div class="players">
-                  ${(g.players ?? []).map(p => html`<span class="player">${this.#playerName(p.id)} (${p.card_count})</span>`)}
-                </div>
-              </div>`
-          : html`<div class="prompt">Join a game to start playing</div>`}
+        <div id="play-area">
+          <div id="draw-pile" class="pile" data-action="draw">
+            <uno-card faceup="false"></uno-card>
+          </div>
+          <div class="dir">${g.direction > 0 ? "→" : "←"}</div>
+          <div id="discard-pile" class="pile">
+            <uno-card color="${top.color}" type="${top.type}" value="${top.value}"></uno-card>
+          </div>
+        </div>
       </div>
-      <card-fan cards='${cards}'></card-fan>
+      <card-fan>${cardsHtml}</card-fan>
     `;
   }
 
   mounted() {
-    const fan = this._root.querySelector("card-fan");
+    const fan = this.querySelector("card-fan");
     if (fan) {
-      fan.model.insert = async (from, to) => {
-        this.send({ action: "game", payload: { action: "reorder", from, to } });
-        return { from, to };
+      fan.model.insert = (from, to) => {
+        return new Promise((resolve, reject) => {
+          this.#pendingReorder = { from, to, resolve, reject };
+          this.send({ action: "game", payload: { action: "reorder_hand", from, to } });
+          setTimeout(() => {
+            if (this.#pendingReorder) {
+              const r = this.#pendingReorder.reject;
+              this.#pendingReorder = null;
+              r(new Error("timeout"));
+            }
+          }, 5000);
+        });
       };
     }
 
     this.on("card-click", (e) => {
-      const slot = e.detail.card.closest(".card-slot");
-      const idx = parseInt(slot?.dataset.index);
+      const idx = parseInt(e.detail.card?.dataset?.index);
       if (isNaN(idx)) return;
       this.#playCard(idx);
     });
@@ -128,8 +261,9 @@ export class UnoPage extends Page {
           this.#playerMap[p.id] = p.name;
         }
       }
-      if (!data.game) return;
-      this.#applyGameState(data.game);
+      if (data.game) this.silent.game = data.game;
+      if (data.hand) this.silent.hand = data.hand;
+      this._update();
     });
 
     this.onMessage("players", (data) => {
@@ -143,8 +277,27 @@ export class UnoPage extends Page {
     this.onMessage("draw", (data) => {
       const drawn = data.cards ?? [];
       this.silent.hand = [...(this.silent.hand ?? []), ...drawn];
+      const fan = this.querySelector("card-fan");
+      if (fan && drawn.length) {
+        fan.addCards(drawn.map(c => {
+          const info = decodeCardId(c.id);
+          return { tag: "uno-card", color: info.color, type: info.kind, value: String(info.value ?? "") };
+        }));
+      }
       this.#pendingPlay = null;
-      this._update();
+    });
+
+    this.onMessage("hand_reordered", () => {
+      if (this.#pendingReorder) {
+        const { from, to, resolve } = this.#pendingReorder;
+        this.#pendingReorder = null;
+        const hand = this.silent.hand;
+        if (hand) {
+          const [card] = hand.splice(from, 1);
+          hand.splice(to, 0, card);
+        }
+        resolve();
+      }
     });
 
     this.onMessage("keep_or_play", (data) => {
@@ -178,9 +331,21 @@ export class UnoPage extends Page {
     this.onMessage("error", (data) => {
       if (this.#pendingPlay) {
         this.silent.hand.splice(this.#pendingPlay.idx, 0, this.#pendingPlay.card);
+        const fan = this.querySelector("card-fan");
+        if (fan) {
+          const info = decodeCardId(this.#pendingPlay.card.id);
+          fan.insertCard(this.#pendingPlay.idx, {
+            tag: "uno-card", color: info.color, type: info.kind, value: String(info.value ?? ""),
+          });
+        }
         this.#pendingPlay = null;
-        this._update();
       }
+      if (this.#pendingReorder) {
+        const r = this.#pendingReorder.reject;
+        this.#pendingReorder = null;
+        r(new Error(data.error ?? "reorder_failed"));
+      }
+      this._update();
     });
 
     this.send({ action: "status" });
@@ -192,32 +357,20 @@ export class UnoPage extends Page {
     const [card] = cards.splice(idx, 1);
     if (!card) return;
     this.#pendingPlay = { card, idx };
-    this._update();
 
+    const fan = this.querySelector("card-fan");
+    fan?.removeCard(idx);
+
+    const info = decodeCardId(card.id);
     const payload = {
       action: "play_card",
-      card: { color: card.color, kind: card.kind, value: card.value },
+      card: { color: info.color, kind: info.kind, value: info.value },
     };
     if (this.silent._playableIdx === idx) {
       payload.hand_index = idx;
       delete this.silent._playableIdx;
     }
     this.send({ action: "game", payload });
-  }
-
-  #applyGameState(data) {
-    this.silent.game = {
-      state: data.state,
-      turn: data.turn,
-      direction: data.direction,
-      drawPile: data.drawPile,
-      topCard: data.topCard,
-      players: data.players,
-    };
-    if (data.hand) {
-      this.silent.hand = data.hand;
-    }
-    this._update();
   }
 }
 

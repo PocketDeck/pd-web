@@ -20,23 +20,40 @@ Built with **vanilla JavaScript Web Components** - no external frameworks or dep
 ## Architecture
 
 ```
+core/                # Framework core
+├── base.mjs         # Component, Page, FormComponent, deepReactive, html, css
+├── main.mjs         # Application entry point
+├── router.mjs       # SPA router with dynamic imports
+└── socket.mjs       # WebSocket singleton with exponential backoff reconnection
+
 components/          # Reusable Web Components
-├── base.mjs         # Base component classes
-├── card.mjs         # Card game component
-├── uno.mjs          # UNO-specific card component
-└── config/          # Game configuration components
+├── card.mjs         # Card base class (renderFace/renderBack)
+├── card-fan.mjs     # Fan layout + drag-drop, light-DOM children API
+├── game-config.mjs  # Game config dropdown + sub-config loader
+├── cards/           # Game-specific card implementations
+│   ├── uno.mjs
+│   ├── skyjo.mjs
+│   └── skipbo.mjs
+└── config/          # Game-specific configuration components
+    ├── uno.mjs
+    ├── skyjo.mjs
+    └── skipbo.mjs
 
 pages/               # Route-based page components
-├── base.mjs         # Base page class
-├── login.mjs        # Login page
-├── lobby.mjs        # Game lobby
+├── login.mjs        # Create/join room
+├── lobby.mjs        # Pre-game lobby
 └── games/           # Game-specific pages
-
-main.mjs             # Application entry point
-router.mjs           # Client-side routing
-socket.mjs           # WebSocket connection management
-styles.mjs           # Global styles
+    ├── uno.mjs
+    ├── skyjo.mjs
+    └── skipbo.mjs
 ```
+
+### Key Design Decisions
+
+- **Shadow DOM** for style encapsulation (no global CSS leaks)
+- **Reactive proxy state** via `deepReactive()` auto-patches DOM on mutation
+- **CardFan uses light-DOM children** — parent renders `<*-card>` elements as children, CardFan wraps them in `.card-slot` divs internally
+- **Events cross shadow boundaries** with `composed: true`; native events use `e.composedPath()` instead of `e.target.closest()`
 
 ## Supported Games
 

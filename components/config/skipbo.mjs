@@ -1,8 +1,8 @@
 import { Component } from "/core/base.mjs";
 
 class SkipboConfig extends Component {
-  static props = { config: {} };
-  render() { return ""; }
+  static props = {};
+  render(state) { return ""; }
 }
 
 SkipboConfig.registerTag("config-skipbo");
