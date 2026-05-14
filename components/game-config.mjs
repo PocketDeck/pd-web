@@ -74,7 +74,7 @@ class GameConfig extends FormComponent {
       if (!e.target.closest("#gameSelect")) return;
       this.silent.config = null;
       this.state.game = e.target.value;
-      const child = this.shadowRoot.querySelector(`config-${this.state.game}`);
+      const child = this.querySelector(`config-${this.state.game}`);
       if (child) {
         this.silent.config = Object.fromEntries(
           Object.keys(child.constructor.props).map(k => [k, child.silent[k]])

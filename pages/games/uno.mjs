@@ -5,19 +5,12 @@ import "/components/card-fan.mjs";
 
 export class UnoPage extends Page {
   static props = {
-    game: {},
-    hand: [
-      { id: 7 },
-      { id: 16 },
-      { id: 22 },
-      { id: 28 },
-      { id: 6 },
-      { id: 22 },
-      { id: 52 },
-      { id: 53 },
-      { id: 18 },
-      { id: 27 },
-    ],
+    state: 'playing',
+    players: [],
+    turn: 0,
+    direction: 0,
+    topCard: { id: 0 },
+    hand: [],
   };
 
   #pendingPlay = null;
@@ -178,44 +171,41 @@ export class UnoPage extends Page {
     };
   }
 
-  render() {
-    const g = this.state.game;
-    const hand = this.state.hand ?? [];
-
-    if (!g) {
+  render({ state, hand, players, winner, turn, direction, topCard }) {
+    if (!state) {
       return html`
         <div id="board"><div class="prompt">Join a game to start playing</div></div>
       `;
     }
 
-    if (g.state === "over") {
+    if (state === "over") {
       return html`
-        <div id="opponents">${this.#opponentHtml(g.players, g.winner)}</div>
+        <div id="opponents">${this.#opponentHtml(players, winner)}</div>
         <div id="board">
           <div class="game-over">
             <div class="title">Game Over</div>
-            <div class="winner">${this.#playerName(g.winner)} wins!</div>
+            <div class="winner">${this.#playerName(winner)} wins!</div>
           </div>
         </div>
       `;
     }
 
-    const cardsHtml = hand.map(c => {
+    let cardsHtml = hand.map(c => {
       const info = decodeCardId(c.id);
       return `<uno-card color="${info.color}" value="${info.value ?? ""}" type="${info.kind}"></uno-card>`;
     }).join("");
 
-    const top = this.#cardAttrs(g.topCard);
+    const top = this.#cardAttrs(topCard);
 
     return html`
-      <div id="opponents">${this.#opponentHtml(g.players, g.turn)}</div>
-      <div id="turn-indicator"><strong>${this.#playerName(g.turn)}</strong>'s turn</div>
+      <div id="opponents">${this.#opponentHtml(players, turn)}</div>
+      <div id="turn-indicator"><strong>${this.#playerName(turn)}</strong>'s turn</div>
       <div id="board">
         <div id="play-area">
           <div id="draw-pile" class="pile" data-action="draw">
             <uno-card faceup="false"></uno-card>
           </div>
-          <div class="dir">${g.direction > 0 ? "→" : "←"}</div>
+          <div class="dir">${direction > 0 ? "→" : "←"}</div>
           <div id="discard-pile" class="pile">
             <uno-card color="${top.color}" type="${top.type}" value="${top.value}"></uno-card>
           </div>
@@ -226,22 +216,19 @@ export class UnoPage extends Page {
   }
 
   mounted() {
-    const fan = this.querySelector("card-fan");
-    if (fan) {
-      fan.model.insert = (from, to) => {
-        return new Promise((resolve, reject) => {
-          this.#pendingReorder = { from, to, resolve, reject };
-          this.send({ action: "game", payload: { action: "reorder_hand", from, to } });
-          setTimeout(() => {
-            if (this.#pendingReorder) {
-              const r = this.#pendingReorder.reject;
-              this.#pendingReorder = null;
-              r(new Error("timeout"));
-            }
-          }, 5000);
-        });
-      };
-    }
+    this.querySelector("card-fan").model.insert = (from, to) => {
+      return new Promise((resolve, reject) => {
+        this.#pendingReorder = { from, to, resolve, reject };
+        this.send({ action: "game", payload: { action: "reorder_hand", from, to } });
+        setTimeout(() => {
+          if (this.#pendingReorder) {
+            const r = this.#pendingReorder.reject;
+            this.#pendingReorder = null;
+            r(new Error("timeout"));
+          }
+        }, 5000);
+      });
+    };
 
     this.on("card-click", (e) => {
       const idx = parseInt(e.detail.card?.dataset?.index);
@@ -261,9 +248,7 @@ export class UnoPage extends Page {
           this.#playerMap[p.id] = p.name;
         }
       }
-      if (data.game) this.silent.game = data.game;
-      if (data.hand) this.silent.hand = data.hand;
-      this._update();
+      this.setState(data.game);
     });
 
     this.onMessage("players", (data) => {

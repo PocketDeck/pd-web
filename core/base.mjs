@@ -81,6 +81,10 @@ export class Component extends HTMLElement {
     this.state = deepReactive(this.silent, () => this.#requestUpdate());
   }
 
+  querySelector(s) { return this.shadowRoot.querySelector(s); }
+  querySelectorAll(s) { return this.shadowRoot.querySelectorAll(s); }
+  getElementById(id) { return this.shadowRoot.getElementById(id); }
+
   static get observedAttributes() {
     return Object.keys(this.props);
   }
