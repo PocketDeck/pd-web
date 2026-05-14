@@ -97,6 +97,16 @@ export class CardFan extends Component {
   #addSlotListeners(slot) {
     const drag = makeDraggable(slot);
 
+    drag.onClick(() => {
+      const card = slot.firstElementChild;
+      if (card) {
+        card.dispatchEvent(new CustomEvent("card-click", {
+          bubbles: true, composed: true,
+          detail: { card },
+        }));
+      }
+    });
+
     drag.onDragStart(() => {
       const idx = parseInt(slot.dataset.index);
       if (isNaN(idx)) return;
@@ -233,6 +243,11 @@ export class CardFan extends Component {
     fanLayout(this.getElementById("fan"), this.state.curvature);
   }
 
+  getCardSlot(idx) {
+    const slots = this.#getSlots();
+    return slots[idx] ?? null;
+  }
+
   insertCard(idx, cardData) {
     const fan = this.getElementById("fan");
     const slot = buildCard(cardData);
@@ -248,6 +263,19 @@ export class CardFan extends Component {
     for (const slot of this.#getSlots()) slot.remove();
     for (const cardData of cardDataArray) {
       const slot = buildCard(cardData);
+      fan.appendChild(slot);
+      this.#addSlotListeners(slot);
+    }
+    fanLayout(fan, this.state.curvature);
+  }
+
+  _childrenUpdated() {
+    const fan = this.getElementById("fan");
+    for (const slot of fan.querySelectorAll(".card-slot")) slot.remove();
+    for (const child of [...this.children]) {
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+      slot.appendChild(child);
       fan.appendChild(slot);
       this.#addSlotListeners(slot);
     }

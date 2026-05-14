@@ -56,12 +56,19 @@ The host element `<card-fan>` has no visible light-DOM children after mount — 
 
 The drag system is built on `makeDraggable` from `core/drag.mjs` — a general-purpose framework for making any element draggable.
 
+### Parent Morph Handling (`_childrenUpdated`)
+
+When a parent component re-renders, the morph process recurses into `<card-fan>` and calls `_childrenUpdated()` on it. This method clears all old `.card-slot` wrappers, wraps each new light DOM child in a fresh `.card-slot`, registers drag listeners via `#addSlotListeners()`, and recalculates layout with `fanLayout()`.
+
+This is how the UNO page updates its hand after receiving a `status` message — `setState(data.game)` triggers re-render, morph adds new `<uno-card>` children to `<card-fan>` light DOM, and `_childrenUpdated()` moves them into shadow DOM wrappers. It also corrects the fan layout after a card is animated out via `moveWithAnimation`.
+
 ### Per-Slot Registration (`#addSlotListeners`)
 
 Each `.card-slot` is registered with `makeDraggable()` once (at mount or when added via `addCards()`/`insertCard()`):
 
 ```js
 const drag = makeDraggable(slot);
+drag.onClick(callback);     // press+release without drag threshold
 drag.onDragStart(callback);
 drag.onDragMove(callback);
 drag.onDragStop(callback);
@@ -72,6 +79,7 @@ drag.onDragStop(callback);
 - Creating a fixed-position wrapper on `document.body` and moving the slot into it
 - Following the cursor with the wrapper centered (`cx - offsetWidth/2, cy - offsetHeight/2`)
 - Setting `slot._skipAbort` support for external drop decision
+- `onClick`: fires on `pointerup` when no drag was initiated (below threshold). Dispatches `card-click` on the card element with `bubbles: true, composed: true`.
 
 ### Drag Start (`onDragStart`)
 
@@ -120,6 +128,8 @@ Used by `slot.abortDrop()` to smoothly animate the card from the wrapper (cursor
 | `addCards(cardDataArray)` | Append cards. Each entry: `{ tag: "uno-card", color: "...", ... }`. Registers drag listeners. |
 | `removeCard(idx)` | Remove card at index. |
 | `insertCard(idx, cardData)` | Insert card at index. Registers drag listeners. |
+| `setCards(cardDataArray)` | Replace all cards. Removes old slots, creates new ones with drag listeners, single `fanLayout` call. |
+| `_childrenUpdated()` | Lifecycle hook called by parent morph. Rebuilds all `.card-slot` wrappers from light DOM children, registers drag listeners, and recalculates layout. |
 
 ### Model
 

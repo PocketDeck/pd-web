@@ -1,4 +1,5 @@
 import { Page, html, css } from "/core/base.mjs";
+import { moveWithAnimation } from "/core/drag.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -291,18 +292,37 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("card_played", (data) => {
-      if (this.silent.game) {
-        this.silent.game.topCard = data.card;
-        const p = this.silent.game.players?.find(p => p.id === data.player);
-        if (p) p.card_count = Math.max(0, (p.card_count ?? 1) - 1);
+      if (this.#pendingPlay) {
+        const idx = this.#pendingPlay.idx;
+        const fan = this.querySelector("card-fan");
+        const pile = this.getElementById("discard-pile");
+
+        if (fan && pile) {
+          const slot = fan.getCardSlot(idx);
+          if (slot) {
+            moveWithAnimation(slot, pile, null, {
+              duration: 300, easing: "ease-out",
+              endCallback: () => { slot.remove(); },
+            });
+            this.silent.hand.splice(idx, 1);
+          } else {
+            fan.removeCard(idx);
+            this.silent.hand.splice(idx, 1);
+          }
+        } else {
+          if (this.silent.hand) this.silent.hand.splice(idx, 1);
+          if (fan) fan.removeCard(idx);
+        }
       }
+
+      this.state.topCard = data.card;
+      const p = this.state.players.find(p => p.id === data.player);
+      p.card_count = Math.max(0, (p.card_count ?? 1) - 1);
       this.#pendingPlay = null;
-      this._update();
     });
 
     this.onMessage("turn", (data) => {
-      if (this.silent.game) this.silent.game.turn = data.player;
-      this._update();
+      this.state.turn = data.player;
     });
 
     this.onMessage("game_over", (data) => {
@@ -314,17 +334,7 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("error", (data) => {
-      if (this.#pendingPlay) {
-        this.silent.hand.splice(this.#pendingPlay.idx, 0, this.#pendingPlay.card);
-        const fan = this.querySelector("card-fan");
-        if (fan) {
-          const info = decodeCardId(this.#pendingPlay.card.id);
-          fan.insertCard(this.#pendingPlay.idx, {
-            tag: "uno-card", color: info.color, type: info.kind, value: String(info.value ?? ""),
-          });
-        }
-        this.#pendingPlay = null;
-      }
+      this.#pendingPlay = null;
       if (this.#pendingReorder) {
         const r = this.#pendingReorder.reject;
         this.#pendingReorder = null;
@@ -339,12 +349,9 @@ export class UnoPage extends Page {
   #playCard(idx) {
     const cards = this.silent.hand;
     if (!cards || idx < 0 || idx >= cards.length) return;
-    const [card] = cards.splice(idx, 1);
+    const card = cards[idx];
     if (!card) return;
     this.#pendingPlay = { card, idx };
-
-    const fan = this.querySelector("card-fan");
-    fan?.removeCard(idx);
 
     const info = decodeCardId(card.id);
     const payload = {

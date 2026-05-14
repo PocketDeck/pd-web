@@ -58,8 +58,10 @@ function _morphNode(old, nev) {
     if (!nev.hasAttribute(name)) old.removeAttribute(name);
   }
 
-  if (old.tagName?.includes("-")) return;
   _morphChildren(old, nev);
+  if (old.tagName?.includes("-") && typeof old._childrenUpdated === "function") {
+    old._childrenUpdated();
+  }
 }
 
 function _patch(parent, html) {

@@ -25,10 +25,12 @@ export function makeDraggable(element) {
   let _dragStart = null;
   let _dragStop = null;
   let _dragMove = null;
+  let _click = null;
 
   function onDragStart(fn) { _dragStart = fn; }
   function onDragStop(fn) { _dragStop = fn; }
   function onDragMove(fn) { _dragMove = fn; }
+  function onClick(fn) { _click = fn; }
 
   let pending = null;
 
@@ -72,6 +74,11 @@ export function makeDraggable(element) {
   }
 
   function onUp(e) {
+    if (pending && !dragging) {
+      pending = null;
+      _click?.(e);
+      return;
+    }
     if (!dragging || dropping) return;
     dropping = true;
 
@@ -120,7 +127,7 @@ export function makeDraggable(element) {
     if (element._draggable) element._draggable = false;
   }
 
-  return { onDragStart, onDragStop, onDragMove, destroy };
+  return { onDragStart, onDragStop, onDragMove, onClick, destroy };
 }
 
 export function moveWithAnimation(element, newParent, nextSibling, options = {}) {

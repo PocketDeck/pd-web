@@ -52,17 +52,16 @@ Walks old and new children in parallel, updating in-place:
 ```
 _patch(parent, htmlString)
   ├─ Parse html via <template>
-  ├─ Save light-DOM children of custom elements (preserved Map)
   ├─ Walk old and new children matched by position + nodeName
   ├─ SAME nodeType + nodeName:
   │   ├─ TEXT: update textContent
-  │   └─ ELEMENT: update attributes → skip if hyphenated tag (custom element)
-  │      then restore preserved children to custom elements
+  │   └─ ELEMENT: update attributes, then recurse into children
+  │      After morph, call _childrenUpdated() on hyphenated elements
   ├─ ONLY OLD → remove()
   └─ ONLY NEW → appendChild()
 ```
 
-Custom elements are skipped during morph — their light-DOM children are preserved and restored. This means components like `CardFan` manage their own children internally.
+Custom elements are **not** skipped during morph — `_morphNode` recurses into them so template children reach light DOM. After morphing children, `_childrenUpdated()` is called if the method exists on the old element. This lets components like `CardFan` react to parent-driven re-renders by wrapping new light DOM children in shadow DOM wrappers.
 
 ### Overriding `_update()`
 
@@ -135,6 +134,7 @@ Card extends Component
 
 - `render()` returns empty string; children come from **light DOM** (`<*-card>`) or via `addCards()` API
 - `mounted()` reads `this.children`, wraps each in `.card-slot` div, moves to shadow root
+- `_childrenUpdated()` — called by parent morph (via `_morphNode` in `base.mjs`) after new light DOM children are added. Clears old slots, wraps new children, registers drag listeners, recalculates layout.
 - Drag-and-drop built on `makeDraggable` from `core/drag.mjs`:
   - Each `.card-slot` registered via `makeDraggable(slot)` in `#addSlotListeners()`
   - `onDragStart`: card removed from fan (moved to fixed wrapper), drop zones built
@@ -147,7 +147,7 @@ Card extends Component
 - `model.insert` returns a Promise:
   - Resolves → slot moved to target position permanently
   - Rejects → slot animated back to original position via `moveWithAnimation`
-- Public API: `addCards([{tag, ...attrs}])`, `removeCard(idx)`, `insertCard(idx, {tag, ...attrs})`
+- Public API: `addCards([{tag, ...attrs}])`, `removeCard(idx)`, `insertCard(idx, {tag, ...attrs})`, `setCards([{tag, ...attrs}])`
 
 ### `game-config`
 
