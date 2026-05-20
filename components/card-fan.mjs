@@ -54,7 +54,7 @@ export class CardFan extends Component {
   model = { insert: null };
 
   #dragState = null;
-  #indicator = null;
+  #ghost = null;
 
   render() {
     return html`<div id="fan"></div><div id="drop-zones"></div>`;
@@ -72,6 +72,17 @@ export class CardFan extends Component {
   mounted() {
     this.#installSlots();
     this.#setupDrag();
+    this.shadowRoot.addEventListener("dragdrop", (e) => {
+      if (e.detail.el.classList.contains("card-slot")) return;
+      const idx = this.#findDropTarget(e.detail.x, e.detail.y);
+      if (idx >= 0) {
+        e.preventDefault();
+        this.dispatchEvent(new CustomEvent("card-external-drop", {
+          bubbles: true, composed: true,
+          detail: { idx, el: e.detail.el, x: e.detail.x, y: e.detail.y },
+        }));
+      }
+    });
   }
 
   #getSlots() {
@@ -121,16 +132,16 @@ export class CardFan extends Component {
       if (!this.#dragState) return;
       const idx = this.#findDropTarget(e.clientX, e.clientY);
       if (idx === this.#dragState.dropIdx) return;
-      this.#removeIndicator();
+      this.#removeGhost();
       this.#dragState.dropIdx = idx;
-      if (idx >= 0) this.#positionIndicator(idx);
+      if (idx >= 0) this.#showGhost(idx);
     });
 
     drag.onDragStop(() => {
       if (!this.#dragState) return;
       const from = this.#dragState.idx;
       const to = this.#dragState.dropIdx;
-      this.#removeIndicator();
+      this.#removeGhost();
       this.#clearDropZones();
 
       if (to >= 0 && to !== from) {
@@ -155,6 +166,9 @@ export class CardFan extends Component {
         } else {
           commit();
         }
+      } else if (slot._dropHandled) {
+        slot._dropHandled = false;
+        this.#dragState = null;
       } else {
         this.#placeCard(slot, from);
         slot.finalizeDrop?.();
@@ -165,11 +179,29 @@ export class CardFan extends Component {
 
   #findDropTarget(x, y) {
     const zonesRoot = this.getElementById("drop-zones");
-    if (!zonesRoot || zonesRoot.children.length === 0) return -1;
-    for (const zone of zonesRoot.children) {
-      const r = zone.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return parseInt(zone.dataset.index);
+    if (zonesRoot && zonesRoot.children.length > 0) {
+      for (const zone of zonesRoot.children) {
+        const r = zone.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return parseInt(zone.dataset.index);
+      }
+      return -1;
     }
+    const slots = this.#getSlots();
+    const n = slots.length;
+    if (n === 0) return 0;
+    const fan = this.getElementById("fan");
+    const fanRect = fan.getBoundingClientRect();
+    const margin = (fanRect.bottom - fanRect.top) * 0.5;
+    if (y < fanRect.top - margin || y > fanRect.bottom + margin) return -1;
+    const midpoints = slots.map(s => {
+      const r = s.getBoundingClientRect();
+      return (r.left + r.right) / 2;
+    });
+    if (x < midpoints[0]) return 0;
+    for (let i = 0; i < n - 1; i++) {
+      if (x >= midpoints[i] && x < midpoints[i + 1]) return i + 1;
+    }
+    if (x >= midpoints[n - 1]) return n;
     return -1;
   }
 
@@ -198,22 +230,22 @@ export class CardFan extends Component {
     if (zonesRoot) { zonesRoot.classList.remove("dragging"); zonesRoot.innerHTML = ""; }
   }
 
-  #positionIndicator(idx) {
-    this.#removeIndicator();
+  #showGhost(idx, cardData) {
+    this.#removeGhost();
     const fan = this.getElementById("fan");
     if (idx < 0 || idx > fan.children.length) return;
-    this.#indicator = buildCard(this.#dragState?.data ?? { tag: "div" });
-    this.#indicator.classList.remove("card-slot");
-    this.#indicator.classList.add("drop-indicator");
+    this.#ghost = buildCard(cardData ?? this.#dragState?.data ?? { tag: "div" });
+    this.#ghost.classList.remove("card-slot");
+    this.#ghost.classList.add("drop-indicator");
     const ref = fan.children[idx] ?? null;
-    fan.insertBefore(this.#indicator, ref);
+    fan.insertBefore(this.#ghost, ref);
     fanLayout(fan, this.state.curvature);
   }
 
-  #removeIndicator() {
-    if (this.#indicator) {
-      this.#indicator.remove();
-      this.#indicator = null;
+  #removeGhost() {
+    if (this.#ghost) {
+      this.#ghost.remove();
+      this.#ghost = null;
       const fan = this.getElementById("fan");
       if (fan) fanLayout(fan, this.state.curvature);
     }
@@ -280,6 +312,30 @@ export class CardFan extends Component {
       this.#addSlotListeners(slot);
     }
     fanLayout(fan, this.state.curvature);
+  }
+
+  getDropIndex(x, y) {
+    return this.#findDropTarget(x, y);
+  }
+
+  showGhost(idx, cardData) {
+    this.#showGhost(idx, cardData);
+  }
+
+  hideGhost() {
+    this.#removeGhost();
+  }
+
+  insertCardElement(idx, element) {
+    const fan = this.getElementById("fan");
+    const slot = document.createElement("div");
+    slot.className = "card-slot";
+    slot.appendChild(element);
+    const ref = fan.children[Math.min(idx, fan.children.length)] ?? null;
+    fan.insertBefore(slot, ref);
+    this.#addSlotListeners(slot);
+    fanLayout(fan, this.state.curvature);
+    return slot;
   }
 
   styles() {

@@ -97,10 +97,11 @@ export function makeDraggable(element) {
 
     const event = new CustomEvent("dragdrop", {
       bubbles: true, composed: true, cancelable: true,
-      detail: { el: element },
+      detail: { el: element, x: e.clientX, y: e.clientY },
     });
 
     const prevented = dragOverElement?.dispatchEvent(event) === false;
+    element._dropHandled = !!prevented;
     dragOverElement = null;
     if (!prevented && !element._skipAbort) element.abortDrop();
     else _dragStop?.(e);

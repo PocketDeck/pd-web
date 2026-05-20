@@ -1,5 +1,5 @@
 import { Page, html, css } from "/core/base.mjs";
-import { moveWithAnimation } from "/core/drag.mjs";
+import { moveWithAnimation, makeDraggable } from "/core/drag.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -16,6 +16,9 @@ export class UnoPage extends Page {
 
   #pendingPlay = null;
   #pendingReorder = null;
+  #pendingDragDrop = null;
+  #pendingDraw = null;
+  #drawState = null;
   #playerMap = {};
 
   #opponentHtml(players, turnId) {
@@ -114,7 +117,8 @@ export class UnoPage extends Page {
         display: flex; gap: 2.5rem; align-items: center;
       }
 
-      .pile { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
+      .pile { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; transition: transform .2s, filter .2s; }
+      #discard-pile.drag-over { transform: scale(1.08); filter: brightness(1.3); }
 
       #draw-pile { cursor: pointer; }
 
@@ -237,11 +241,28 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    this.on("click", (e) => {
-      if (e.target.closest("[data-action='draw']")) {
-        this.send({ action: "game", payload: { action: "draw_card" } });
-      }
+    const discardPile = this.getElementById("discard-pile");
+    discardPile.addEventListener("dragdrop", (e) => {
+      e.preventDefault();
+      const slot = e.detail.el;
+      const idx = parseInt(slot.dataset.index);
+      if (isNaN(idx)) return;
+      this.#pendingDragDrop = { slot, idx };
+      this.#playCard(idx);
     });
+    discardPile.addEventListener("dragenter", () => discardPile.classList.add("drag-over"));
+    discardPile.addEventListener("dragleave", () => discardPile.classList.remove("drag-over"));
+
+    const fan = this.querySelector("card-fan");
+    fan.addEventListener("card-external-drop", (e) => {
+      const idx = e.detail.idx;
+      const cardEl = e.detail.el;
+      const slot = fan.insertCardElement(idx, cardEl);
+      this.#pendingDraw = { idx, slot };
+      this.send({ action: "game", payload: { action: "draw_card" } });
+    });
+
+    this.#setupDrawPileDrag();
 
     this.onMessage("status", (data) => {
       if (data.players) {
@@ -262,13 +283,33 @@ export class UnoPage extends Page {
 
     this.onMessage("draw", (data) => {
       const drawn = data.cards ?? [];
-      this.silent.hand = [...(this.silent.hand ?? []), ...drawn];
-      const fan = this.querySelector("card-fan");
-      if (fan && drawn.length) {
-        fan.addCards(drawn.map(c => {
-          const info = decodeCardId(c.id);
-          return { tag: "uno-card", color: info.color, type: info.kind, value: String(info.value ?? "") };
-        }));
+      if (this.#pendingDraw) {
+        const { idx, slot } = this.#pendingDraw;
+        this.#pendingDraw = null;
+        if (drawn.length > 0) {
+          const cardInfo = decodeCardId(drawn[0].id);
+          if (slot && slot.parentNode) {
+            const cardEl = slot.firstElementChild;
+            if (cardEl) {
+              cardEl.setAttribute("faceup", "true");
+              cardEl.setAttribute("color", cardInfo.color);
+              cardEl.setAttribute("type", cardInfo.kind);
+              cardEl.setAttribute("value", String(cardInfo.value ?? ""));
+            }
+          }
+          if (this.silent.hand) {
+            this.silent.hand.splice(idx, 0, drawn[0]);
+          }
+        }
+      } else {
+        this.silent.hand = [...(this.silent.hand ?? []), ...drawn];
+        const fan = this.querySelector("card-fan");
+        if (fan && drawn.length) {
+          fan.addCards(drawn.map(c => {
+            const info = decodeCardId(c.id);
+            return { tag: "uno-card", color: info.color, type: info.kind, value: String(info.value ?? "") };
+          }));
+        }
       }
       this.#pendingPlay = null;
     });
@@ -294,24 +335,36 @@ export class UnoPage extends Page {
     this.onMessage("card_played", (data) => {
       if (this.#pendingPlay) {
         const idx = this.#pendingPlay.idx;
-        const fan = this.querySelector("card-fan");
-        const pile = this.getElementById("discard-pile");
-
-        if (fan && pile) {
-          const slot = fan.getCardSlot(idx);
-          if (slot) {
+        if (this.#pendingDragDrop) {
+          const { slot } = this.#pendingDragDrop;
+          this.#pendingDragDrop = null;
+          const pile = this.getElementById("discard-pile");
+          if (slot && pile) {
             moveWithAnimation(slot, pile, null, {
               duration: 300, easing: "ease-out",
               endCallback: () => { slot.remove(); },
             });
-            this.silent.hand.splice(idx, 1);
-          } else {
-            fan.removeCard(idx);
-            this.silent.hand.splice(idx, 1);
           }
-        } else {
           if (this.silent.hand) this.silent.hand.splice(idx, 1);
-          if (fan) fan.removeCard(idx);
+        } else {
+          const fan = this.querySelector("card-fan");
+          const pile = this.getElementById("discard-pile");
+          if (fan && pile) {
+            const slot = fan.getCardSlot(idx);
+            if (slot) {
+              moveWithAnimation(slot, pile, null, {
+                duration: 300, easing: "ease-out",
+                endCallback: () => { slot.remove(); },
+              });
+              this.silent.hand.splice(idx, 1);
+            } else {
+              fan.removeCard(idx);
+              this.silent.hand.splice(idx, 1);
+            }
+          } else {
+            if (this.silent.hand) this.silent.hand.splice(idx, 1);
+            if (fan) fan.removeCard(idx);
+          }
         }
       }
 
@@ -334,11 +387,21 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("error", (data) => {
-      this.#pendingPlay = null;
+      if (this.#pendingPlay) {
+        this.#pendingPlay = null;
+        if (this.#pendingDragDrop) {
+          const { slot } = this.#pendingDragDrop;
+          this.#pendingDragDrop = null;
+          if (slot) slot.abortDrop?.();
+        }
+      }
       if (this.#pendingReorder) {
         const r = this.#pendingReorder.reject;
         this.#pendingReorder = null;
         r(new Error(data.error ?? "reorder_failed"));
+      }
+      if (this.#pendingDraw) {
+        this.#failDraw(data.error);
       }
       this._update();
     });
@@ -363,6 +426,50 @@ export class UnoPage extends Page {
       delete this.silent._playableIdx;
     }
     this.send({ action: "game", payload });
+  }
+
+  #setupDrawPileDrag() {
+    const card = this.getElementById("draw-pile").querySelector("uno-card");
+    if (!card) return;
+    const drag = makeDraggable(card);
+    drag.onClick(() => { this.send({ action: "game", payload: { action: "draw_card" } }); });
+    drag.onDragStart(() => { this.#drawState = { idx: -1 }; });
+    drag.onDragMove((e) => {
+      if (!this.#drawState) return;
+      const fan = this.querySelector("card-fan");
+      if (!fan) return;
+      const idx = fan.getDropIndex(e.clientX, e.clientY);
+      if (idx !== this.#drawState.idx) {
+        fan.hideGhost();
+        this.#drawState.idx = idx;
+        if (idx >= 0) fan.showGhost(idx, { tag: "uno-card", faceup: "false" });
+      }
+    });
+    drag.onDragStop(() => {
+      const fan = this.querySelector("card-fan");
+      if (fan) fan.hideGhost();
+      this.#ensureDrawPileCard();
+      this.#drawState = null;
+      card.finalizeDrop?.();
+    });
+  }
+
+  #ensureDrawPileCard() {
+    const pile = this.getElementById("draw-pile");
+    if (!pile.querySelector("uno-card")) {
+      const card = document.createElement("uno-card");
+      card.setAttribute("faceup", "false");
+      pile.appendChild(card);
+      this.#setupDrawPileDrag();
+    }
+  }
+
+  #failDraw(error) {
+    if (!this.#pendingDraw) return;
+    const { slot } = this.#pendingDraw;
+    this.#pendingDraw = null;
+    if (slot && slot.parentNode) slot.remove();
+    this.#ensureDrawPileCard();
   }
 }
 
