@@ -1,8 +1,10 @@
 import { Page, html, css } from "/core/base.mjs";
-import { moveWithAnimation, makeDraggable } from "/core/drag.mjs";
+import { moveWithAnimation } from "/core/drag.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
+import "/components/draw-pile.mjs";
+import "/components/discard-pile.mjs";
 
 export class UnoPage extends Page {
   static props = {
@@ -117,10 +119,12 @@ export class UnoPage extends Page {
         display: flex; gap: 2.5rem; align-items: center;
       }
 
-      .pile { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; transition: transform .2s, filter .2s; }
-      #discard-pile.drag-over { transform: scale(1.08); filter: brightness(1.3); }
-
-      #draw-pile { cursor: pointer; }
+      draw-pile, discard-pile {
+        display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
+        transition: transform .2s, filter .2s;
+      }
+      draw-pile { cursor: pointer; }
+      discard-pile.drag-over { transform: scale(1.08); filter: brightness(1.3); }
 
       .dir {
         font-size: 1.5rem; color: rgba(255,255,255,0.1);
@@ -207,13 +211,11 @@ export class UnoPage extends Page {
       <div id="turn-indicator"><strong>${this.#playerName(turn)}</strong>'s turn</div>
       <div id="board">
         <div id="play-area">
-          <div id="draw-pile" class="pile" data-action="draw">
-            <uno-card faceup="false"></uno-card>
-          </div>
+          <draw-pile></draw-pile>
           <div class="dir">${direction > 0 ? "→" : "←"}</div>
-          <div id="discard-pile" class="pile">
+          <discard-pile>
             <uno-card color="${top.color}" type="${top.type}" value="${top.value}"></uno-card>
-          </div>
+          </discard-pile>
         </div>
       </div>
       <card-fan>${cardsHtml}</card-fan>
@@ -241,17 +243,39 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    const discardPile = this.getElementById("discard-pile");
-    discardPile.addEventListener("dragdrop", (e) => {
-      e.preventDefault();
-      const slot = e.detail.el;
+    this.on("discard-drop", (e) => {
+      const slot = e.detail.slot;
       const idx = parseInt(slot.dataset.index);
       if (isNaN(idx)) return;
       this.#pendingDragDrop = { slot, idx };
       this.#playCard(idx);
     });
-    discardPile.addEventListener("dragenter", () => discardPile.classList.add("drag-over"));
-    discardPile.addEventListener("dragleave", () => discardPile.classList.remove("drag-over"));
+
+    this.on("draw-click", () => {
+      this.send({ action: "game", payload: { action: "draw_card" } });
+    });
+
+    this.on("draw-drag-start", () => {
+      this.#drawState = { idx: -1 };
+    });
+
+    this.on("draw-drag-move", (e) => {
+      if (!this.#drawState) return;
+      const fan = this.querySelector("card-fan");
+      if (!fan) return;
+      const idx = fan.getDropIndex(e.detail.x, e.detail.y);
+      if (idx !== this.#drawState.idx) {
+        fan.hideGhost();
+        this.#drawState.idx = idx;
+        if (idx >= 0) fan.showGhost(idx, { tag: "uno-card", faceup: "false" });
+      }
+    });
+
+    this.on("draw-drag-end", () => {
+      const fan = this.querySelector("card-fan");
+      if (fan) fan.hideGhost();
+      this.#drawState = null;
+    });
 
     const fan = this.querySelector("card-fan");
     fan.addEventListener("card-external-drop", (e) => {
@@ -261,8 +285,6 @@ export class UnoPage extends Page {
       this.#pendingDraw = { idx, slot };
       this.send({ action: "game", payload: { action: "draw_card" } });
     });
-
-    this.#setupDrawPileDrag();
 
     this.onMessage("status", (data) => {
       if (data.players) {
@@ -338,7 +360,7 @@ export class UnoPage extends Page {
         if (this.#pendingDragDrop) {
           const { slot } = this.#pendingDragDrop;
           this.#pendingDragDrop = null;
-          const pile = this.getElementById("discard-pile");
+          const pile = this.querySelector("discard-pile");
           if (slot && pile) {
             moveWithAnimation(slot, pile, null, {
               duration: 300, easing: "ease-out",
@@ -348,7 +370,7 @@ export class UnoPage extends Page {
           if (this.silent.hand) this.silent.hand.splice(idx, 1);
         } else {
           const fan = this.querySelector("card-fan");
-          const pile = this.getElementById("discard-pile");
+          const pile = this.querySelector("discard-pile");
           if (fan && pile) {
             const slot = fan.getCardSlot(idx);
             if (slot) {
@@ -428,48 +450,11 @@ export class UnoPage extends Page {
     this.send({ action: "game", payload });
   }
 
-  #setupDrawPileDrag() {
-    const card = this.getElementById("draw-pile").querySelector("uno-card");
-    if (!card) return;
-    const drag = makeDraggable(card);
-    drag.onClick(() => { this.send({ action: "game", payload: { action: "draw_card" } }); });
-    drag.onDragStart(() => { this.#drawState = { idx: -1 }; });
-    drag.onDragMove((e) => {
-      if (!this.#drawState) return;
-      const fan = this.querySelector("card-fan");
-      if (!fan) return;
-      const idx = fan.getDropIndex(e.clientX, e.clientY);
-      if (idx !== this.#drawState.idx) {
-        fan.hideGhost();
-        this.#drawState.idx = idx;
-        if (idx >= 0) fan.showGhost(idx, { tag: "uno-card", faceup: "false" });
-      }
-    });
-    drag.onDragStop(() => {
-      const fan = this.querySelector("card-fan");
-      if (fan) fan.hideGhost();
-      this.#ensureDrawPileCard();
-      this.#drawState = null;
-      card.finalizeDrop?.();
-    });
-  }
-
-  #ensureDrawPileCard() {
-    const pile = this.getElementById("draw-pile");
-    if (!pile.querySelector("uno-card")) {
-      const card = document.createElement("uno-card");
-      card.setAttribute("faceup", "false");
-      pile.appendChild(card);
-      this.#setupDrawPileDrag();
-    }
-  }
-
   #failDraw(error) {
     if (!this.#pendingDraw) return;
     const { slot } = this.#pendingDraw;
     this.#pendingDraw = null;
     if (slot && slot.parentNode) slot.remove();
-    this.#ensureDrawPileCard();
   }
 }
 
