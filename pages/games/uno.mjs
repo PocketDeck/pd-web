@@ -1,5 +1,5 @@
 import { Page, html, css } from "/core/base.mjs";
-import { moveWithAnimation } from "/core/drag.mjs";
+import { moveWithAnimation, makeDroppable } from "/core/drag.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -236,31 +236,17 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    this.addEventListener("dragdrop", (e) => {
-      if (!e.detail.el.classList.contains("card-slot")) return;
-      const pile = this.querySelector("discard-pile");
-      if (!pile) return;
-      const r = pile.getBoundingClientRect();
-      if (e.detail.x < r.left || e.detail.x > r.right || e.detail.y < r.top || e.detail.y > r.bottom) return;
-      e.preventDefault();
-      const slot = e.detail.el;
-      const idx = parseInt(slot.dataset.index);
-      if (isNaN(idx)) return;
-      const slotRect = slot.getBoundingClientRect();
-      this.#pendingDragDrop = { slot, idx, rect: { top: slotRect.top, left: slotRect.left, width: slotRect.width, height: slotRect.height } };
-      this.#playCard(idx);
-    });
-
-    this.addEventListener("dragenter", (e) => {
-      if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
-        this.querySelector("discard-pile")?.classList.add("drag-over");
-      }
-    });
-
-    this.addEventListener("dragleave", (e) => {
-      if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
-        this.querySelector("discard-pile")?.classList.remove("drag-over");
-      }
+    makeDroppable(this.querySelector("discard-pile"), {
+      accept: (source) => source.classList.contains("card-slot"),
+      over: () => this.querySelector("discard-pile")?.classList.add("drag-over"),
+      leave: () => this.querySelector("discard-pile")?.classList.remove("drag-over"),
+      drop: (source, x, y) => {
+        const idx = parseInt(source.dataset.index);
+        if (isNaN(idx)) return false;
+        const r = source.getBoundingClientRect();
+        this.#pendingDragDrop = { slot: source, idx, rect: { top: r.top, left: r.left, width: r.width, height: r.height } };
+        this.#playCard(idx);
+      },
     });
 
     this.on("draw-click", () => {
@@ -427,7 +413,7 @@ export class UnoPage extends Page {
         if (this.#pendingDragDrop) {
           const { slot } = this.#pendingDragDrop;
           this.#pendingDragDrop = null;
-          if (slot) slot.abortDrop?.();
+          if (slot && slot.parentNode) slot.remove();
         }
       }
       if (this.#pendingReorder) {

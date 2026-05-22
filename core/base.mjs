@@ -46,21 +46,18 @@ function _morphChildren(parent, newNodes) {
 }
 
 function _morphNode(old, nev) {
-  if (nev.nodeType === Node.TEXT_NODE) {
-    if (old.textContent !== nev.textContent) old.textContent = nev.textContent;
-    return;
-  }
-
   for (const { name, value } of nev.attributes) {
+    if (name.startsWith("on:")) continue;
     if (old.getAttribute(name) !== value) old.setAttribute(name, value);
   }
   for (const { name } of old.attributes) {
+    if (name.startsWith("on:")) continue;
     if (!nev.hasAttribute(name)) old.removeAttribute(name);
   }
 
   _morphChildren(old, nev);
-  if (old.tagName?.includes("-") && typeof old._childrenUpdated === "function") {
-    old._childrenUpdated();
+  if (old.tagName?.includes("-") && typeof old.onChildrenChanged === "function") {
+    old.onChildrenChanged();
   }
 }
 
@@ -75,6 +72,8 @@ export class Component extends HTMLElement {
   #pending = false;
   #mounted = false;
   #listeners = new Map();
+  #evCleanup = new WeakMap();
+  #instanceId = 0;
 
   constructor() {
     super();
@@ -99,13 +98,18 @@ export class Component extends HTMLElement {
 
   connectedCallback() {
     this.#mounted = true;
+    this.#listenSlot();
     this._update();
     this.mounted();
+    this.onMount();
   }
 
   disconnectedCallback() {
     this.#mounted = false;
+    this.#unlistenSlot();
+    this._clearEventBindings();
     this.unmounted();
+    this.onUnmount();
   }
 
   setState(partial) {
@@ -124,12 +128,68 @@ export class Component extends HTMLElement {
 
   _update() {
     _patch(this.shadowRoot, `<style>${this.styles(this.state)}</style>${this.render(this.state)}`);
+    this._bindEvents(this.shadowRoot);
+    this.onRender();
   }
 
   render(state) { return ""; }
   styles(state) { return ""; }
+
+  // Lifecycle hooks
   mounted() {}
   unmounted() {}
+  onMount() {}
+  onUnmount() {}
+  onRender() {}
+  onChildrenChanged() {}
+  onSlotChange(assigned) {}
+
+  // Declarative event binding — use on:click="methodName" in templates
+  _bindEvents(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const prev = this.#evCleanup.get(node);
+      if (prev) { prev(); this.#evCleanup.delete(node); }
+
+      const fns = [];
+      const rmed = [];
+      for (const attr of [...node.attributes]) {
+        if (!attr.name.startsWith("on:")) continue;
+        const type = attr.name.slice(3);
+        const name = attr.value;
+        rmed.push(attr.name);
+        const fn = typeof this[name] === "function" ? this[name].bind(this) : null;
+        if (fn) {
+          node.addEventListener(type, fn);
+          fns.push(() => node.removeEventListener(type, fn));
+        }
+      }
+      for (const n of rmed) node.removeAttribute(n);
+      if (fns.length) this.#evCleanup.set(node, () => fns.forEach(f => f()));
+    }
+  }
+
+  _clearEventBindings() {
+    for (const [node, cleanup] of this.#evCleanup) cleanup();
+    this.#evCleanup = new WeakMap();
+  }
+
+  // Slot change listener
+  #slotHandler = null;
+  #listenSlot() {
+    const slot = this.shadowRoot?.querySelector("slot");
+    if (!slot) return;
+    this.#slotHandler = () => this.onSlotChange(slot.assignedElements());
+    slot.addEventListener("slotchange", this.#slotHandler);
+  }
+  #unlistenSlot() {
+    if (this.#slotHandler) {
+      const slot = this.shadowRoot?.querySelector("slot");
+      slot?.removeEventListener("slotchange", this.#slotHandler);
+      this.#slotHandler = null;
+    }
+  }
 
   on(type, listener, options) {
     if (this.#listeners.has(type)) {

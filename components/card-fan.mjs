@@ -67,22 +67,30 @@ export class CardFan extends Component {
     }
     const style = this.querySelector("style");
     if (style) style.textContent = this.styles(this.state);
+    this._bindEvents(this.shadowRoot);
+    this.onRender();
   }
 
-  mounted() {
+  onMount() {
     this.#installSlots();
     this.#setupDrag();
-    this.shadowRoot.addEventListener("dragdrop", (e) => {
-      if (e.detail.el.classList.contains("card-slot")) return;
-      const idx = this.#findDropTarget(e.detail.x, e.detail.y);
-      if (idx >= 0) {
-        e.preventDefault();
-        this.dispatchEvent(new CustomEvent("card-external-drop", {
-          bubbles: true, composed: true,
-          detail: { idx, el: e.detail.el, x: e.detail.x, y: e.detail.y },
-        }));
-      }
-    });
+  }
+
+  onRender() {
+    this.#setupDrag();
+  }
+
+  onChildrenChanged() {
+    const fan = this.getElementById("fan");
+    for (const slot of fan.querySelectorAll(".card-slot")) slot.remove();
+    for (const child of [...this.children]) {
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+      slot.appendChild(child);
+      fan.appendChild(slot);
+      this.#addSlotListeners(slot);
+    }
+    fanLayout(fan, this.state.curvature);
   }
 
   #getSlots() {
@@ -106,75 +114,72 @@ export class CardFan extends Component {
   }
 
   #addSlotListeners(slot) {
-    const drag = makeDraggable(slot);
+    if (slot._dragSetup) return;
+    slot._dragSetup = true;
 
-    drag.onClick(() => {
-      const card = slot.firstElementChild;
-      if (card) {
-        card.dispatchEvent(new CustomEvent("card-click", {
-          bubbles: true, composed: true,
-          detail: { card },
-        }));
-      }
-    });
+    makeDraggable(slot, {
+      click: () => {
+        const card = slot.firstElementChild;
+        if (card) {
+          card.dispatchEvent(new CustomEvent("card-click", {
+            bubbles: true, composed: true,
+            detail: { card },
+          }));
+        }
+      },
+      start: () => {
+        const idx = parseInt(slot.dataset.index);
+        if (isNaN(idx)) return;
+        const r = slot.getBoundingClientRect();
+        this.#dragState = { idx, data: getCardData(slot), dropIdx: -1, dragW: r.width, dragH: r.height };
+        fanLayout(this.getElementById("fan"), this.state.curvature);
+        this.#populateDropZones();
+      },
+      move: (_el, x, y) => {
+        if (!this.#dragState) return;
+        const idx = this.#findDropTarget(x, y);
+        if (idx === this.#dragState.dropIdx) return;
+        this.#removeGhost();
+        this.#dragState.dropIdx = idx;
+        if (idx >= 0) this.#showGhost(idx);
+      },
+      end: (_el, target) => {
+        if (!this.#dragState) return;
+        const from = this.#dragState.idx;
+        const to = this.#dragState.dropIdx;
+        this.#removeGhost();
+        this.#clearDropZones();
 
-    drag.onDragStart(() => {
-      const idx = parseInt(slot.dataset.index);
-      if (isNaN(idx)) return;
-      const r = slot.getBoundingClientRect();
-      this.#dragState = { idx, data: getCardData(slot), dropIdx: -1, dragW: r.width, dragH: r.height };
-      slot._skipAbort = true;
-      fanLayout(this.getElementById("fan"), this.state.curvature);
-      this.#populateDropZones();
-    });
-
-    drag.onDragMove((e) => {
-      if (!this.#dragState) return;
-      const idx = this.#findDropTarget(e.clientX, e.clientY);
-      if (idx === this.#dragState.dropIdx) return;
-      this.#removeGhost();
-      this.#dragState.dropIdx = idx;
-      if (idx >= 0) this.#showGhost(idx);
-    });
-
-    drag.onDragStop(() => {
-      if (!this.#dragState) return;
-      const from = this.#dragState.idx;
-      const to = this.#dragState.dropIdx;
-      this.#removeGhost();
-      this.#clearDropZones();
-
-      if (slot._dropHandled) {
-        slot._dropHandled = false;
-        slot.finalizeDrop?.();
-        this.#dragState = null;
-      } else if (to >= 0 && to !== from) {
-        this.dispatchEvent(new CustomEvent("fan-insert", {
-          bubbles: true, composed: true,
-          detail: { from, to },
-        }));
-
-        const commit = () => {
-          this.#placeCard(slot, to);
-          slot.finalizeDrop?.();
+        if (target) {
+          // Drop was consumed by an external target (e.g., discard-pile)
+          // Coordinator moved slot back to original position.
           this.#dragState = null;
-        };
+        } else if (to >= 0 && to !== from) {
+          this.dispatchEvent(new CustomEvent("fan-insert", {
+            bubbles: true, composed: true,
+            detail: { from, to },
+          }));
 
-        if (this.model.insert) {
-          const promise = this.model.insert(from, to);
-          if (promise && typeof promise.then === "function") {
-            promise.then(commit).catch(() => { this.#placeCard(slot, from); slot.finalizeDrop?.(); this.#dragState = null; });
+          const commit = () => {
+            this.#placeCard(slot, to);
+            this.#dragState = null;
+          };
+
+          if (this.model.insert) {
+            const promise = this.model.insert(from, to);
+            if (promise && typeof promise.then === "function") {
+              promise.then(commit).catch(() => { this.#placeCard(slot, from); this.#dragState = null; });
+            } else {
+              commit();
+            }
           } else {
             commit();
           }
         } else {
-          commit();
+          this.#placeCard(slot, from);
+          this.#dragState = null;
         }
-      } else {
-        this.#placeCard(slot, from);
-        slot.finalizeDrop?.();
-        this.#dragState = null;
-      }
+      },
     });
   }
 
@@ -296,19 +301,6 @@ export class CardFan extends Component {
     for (const slot of this.#getSlots()) slot.remove();
     for (const cardData of cardDataArray) {
       const slot = buildCard(cardData);
-      fan.appendChild(slot);
-      this.#addSlotListeners(slot);
-    }
-    fanLayout(fan, this.state.curvature);
-  }
-
-  _childrenUpdated() {
-    const fan = this.getElementById("fan");
-    for (const slot of fan.querySelectorAll(".card-slot")) slot.remove();
-    for (const child of [...this.children]) {
-      const slot = document.createElement("div");
-      slot.className = "card-slot";
-      slot.appendChild(child);
       fan.appendChild(slot);
       this.#addSlotListeners(slot);
     }

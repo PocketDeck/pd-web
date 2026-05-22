@@ -62,16 +62,11 @@ export class DrawPile extends Component {
     `;
   }
 
-  mounted() {
+  onRender() {
     this.#setupDrag();
   }
 
-  _update() {
-    super._update();
-    this.#setupDrag();
-  }
-
-  _childrenUpdated() {
+  onChildrenChanged() {
     this.#setupDrag();
   }
 
@@ -84,34 +79,22 @@ export class DrawPile extends Component {
   #setupDrag() {
     const card = this.#cardFromSlot();
     if (!card || card._draggable) return;
-    const drag = makeDraggable(card);
-
-    drag.onClick(() => {
-      this.dispatchEvent(new CustomEvent("draw-click", { bubbles: true, composed: true }));
-    });
-
-    drag.onDragStart(() => {
-      card._skipAbort = true;
-      this.dispatchEvent(new CustomEvent("draw-drag-start", { bubbles: true, composed: true }));
-    });
-
-    drag.onDragMove((e) => {
-      this.dispatchEvent(new CustomEvent("draw-drag-move", {
-        bubbles: true, composed: true,
-        detail: { x: e.clientX, y: e.clientY },
-      }));
-    });
-
-    drag.onDragStop(() => {
-      this.dispatchEvent(new CustomEvent("draw-drag-end", { bubbles: true, composed: true }));
-
-      if (card._dropHandled) {
-        card.finalizeDrop?.();
-        this._update();
-      } else {
-        this.appendChild(card);
-        card.finalizeDrop?.();
-      }
+    makeDraggable(card, {
+      click: () => {
+        this.dispatchEvent(new CustomEvent("draw-click", { bubbles: true, composed: true }));
+      },
+      start: () => {
+        this.dispatchEvent(new CustomEvent("draw-drag-start", { bubbles: true, composed: true }));
+      },
+      move: (_el, x, y) => {
+        this.dispatchEvent(new CustomEvent("draw-drag-move", {
+          bubbles: true, composed: true,
+          detail: { x, y },
+        }));
+      },
+      end: () => {
+        this.dispatchEvent(new CustomEvent("draw-drag-end", { bubbles: true, composed: true }));
+      },
     });
   }
 }
