@@ -144,7 +144,10 @@ export class CardFan extends Component {
       this.#removeGhost();
       this.#clearDropZones();
 
-      if (to >= 0 && to !== from) {
+      if (slot._dropHandled) {
+        slot._dropHandled = false;
+        this.#dragState = null;
+      } else if (to >= 0 && to !== from) {
         this.dispatchEvent(new CustomEvent("fan-insert", {
           bubbles: true, composed: true,
           detail: { from, to },
@@ -166,9 +169,6 @@ export class CardFan extends Component {
         } else {
           commit();
         }
-      } else if (slot._dropHandled) {
-        slot._dropHandled = false;
-        this.#dragState = null;
       } else {
         this.#placeCard(slot, from);
         slot.finalizeDrop?.();

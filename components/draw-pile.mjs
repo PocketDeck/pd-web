@@ -8,8 +8,7 @@ export class DrawPile extends Component {
     if (count <= 0) {
       return html`<div class="empty"></div>`;
     }
-    const n = Math.min(count, 3);
-    const shims = Array.from({ length: n }, (_, i) =>
+    const shims = Array.from({ length: count }, (_, i) =>
       `<div class="shim" style="--i: ${i}"></div>`
     ).join("");
     return html`
@@ -17,7 +16,6 @@ export class DrawPile extends Component {
         <slot><uno-card faceup="false"></uno-card></slot>
         ${shims}
       </div>
-      <div class="count">${count}</div>
     `;
   }
 
@@ -34,7 +32,13 @@ export class DrawPile extends Component {
         height: 136px;
       }
 
-      #stack ::slotted(*), #stack > :first-child {
+      #stack ::slotted(*) {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+      }
+
+      #stack > slot > * {
         position: absolute;
         inset: 0;
         z-index: 4;
@@ -47,15 +51,7 @@ export class DrawPile extends Component {
         background: linear-gradient(145deg, #252560, #0f0f35);
         border: 1px solid rgba(255,255,255,0.1);
         z-index: calc(3 - var(--i, 0));
-        transform: translate(calc(var(--i, 0) * -1px), calc(var(--i, 0) * -1px));
-      }
-
-      .count {
-        font-size: 0.9rem; font-weight: 700;
-        background: rgba(255,255,255,0.08);
-        padding: 0.125rem 0.5rem; border-radius: 999px;
-        color: rgba(255,255,255,0.5);
-        min-width: 1.25rem; text-align: center;
+        transform: translate(calc(var(--i, 0) * -0.2px), calc(var(--i, 0) * -0.2px));
       }
 
       .empty {
