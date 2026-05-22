@@ -51,6 +51,8 @@ function buildCard(cardData) {
 export class CardFan extends Component {
   static props = { curvature: 70 };
 
+  _skipBodyMorph = true;
+
   model = { insert: null };
 
   #dragState = null;
@@ -58,17 +60,6 @@ export class CardFan extends Component {
 
   render() {
     return html`<div id="fan"></div><div id="drop-zones"></div>`;
-  }
-
-  _update() {
-    if (!this.getElementById("fan")) {
-      super._update();
-      return;
-    }
-    const style = this.querySelector("style");
-    if (style) style.textContent = this.styles(this.state);
-    this._bindEvents(this.shadowRoot);
-    this.onRender();
   }
 
   onMount() {

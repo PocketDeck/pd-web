@@ -34,6 +34,8 @@ function _morphChildren(parent, newNodes) {
     if (o && n) {
       if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) {
         o.replaceWith(document.importNode(n, true));
+      } else if (o.nodeType === Node.TEXT_NODE) {
+        if (o.textContent !== n.textContent) o.textContent = n.textContent;
       } else {
         _morphNode(o, n);
       }
@@ -47,11 +49,9 @@ function _morphChildren(parent, newNodes) {
 
 function _morphNode(old, nev) {
   for (const { name, value } of nev.attributes) {
-    if (name.startsWith("on:")) continue;
     if (old.getAttribute(name) !== value) old.setAttribute(name, value);
   }
   for (const { name } of old.attributes) {
-    if (name.startsWith("on:")) continue;
     if (!nev.hasAttribute(name)) old.removeAttribute(name);
   }
 
@@ -125,8 +125,23 @@ export class Component extends HTMLElement {
     });
   }
 
+  _skipBodyMorph = false;
+
   _update() {
-    _patch(this.shadowRoot, `<style>${this.styles(this.state)}</style>${this.render(this.state)}`);
+    if (!this.shadowRoot.getElementById('_body')) {
+      this.shadowRoot.innerHTML = `<style id="_style">${this.styles(this.state)}</style><div id="_body">${this.render(this.state)}</div>`;
+      this._bindEvents(this.shadowRoot);
+      this.onRender();
+      return;
+    }
+    const style = this.shadowRoot.getElementById('_style');
+    style.textContent = this.styles(this.state);
+    if (!this._skipBodyMorph) {
+      const body = this.shadowRoot.getElementById('_body');
+      const tpl = document.createElement('template');
+      tpl.innerHTML = this.render(this.state);
+      _morphChildren(body, tpl.content);
+    }
     this._bindEvents(this.shadowRoot);
     this.onRender();
   }

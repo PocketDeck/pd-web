@@ -10,11 +10,10 @@ class LoginPage extends Page {
     config: null,
   };
 
-  render() {
-    const mode = this.state.mode;
+  render({ mode, config, name, room, game }) {
     const activeClass = (tab) => (mode === tab ? "active" : "");
 
-    const configAttr = this.state.config ? `config='${JSON.stringify(this.state.config)}'` : "";
+    const configAttr = config ? `config='${JSON.stringify(config)}'` : "";
 
     const header = html`
       <h1>Game Room</h1>
@@ -28,16 +27,16 @@ class LoginPage extends Page {
       ? html`
         <div><form id="joinForm">
           <h2>Join a Room</h2>
-          <input type="text" name="Name" placeholder="Enter your name" value="${this.state.name}" required />
-          <input type="text" name="Room ID" class="roomId" placeholder="Enter Room ID" value="${this.state.room}" required />
+          <input type="text" name="Name" placeholder="Enter your name" value="${name}" required />
+          <input type="text" name="Room ID" class="roomId" placeholder="Enter Room ID" value="${room}" required />
           <button type="submit">Join</button>
         </form></div>`
       : mode === "create"
         ? html`
           <div><form>
             <h2>Create a Room</h2>
-            <input type="text" name="Name" placeholder="Enter your name" value="${this.state.name}" required />
-            <game-config name="Config" game="${this.state.game}" ${configAttr}></game-config>
+            <input type="text" name="Name" placeholder="Enter your name" value="${name}" required />
+            <game-config name="Config" game="${game}" ${configAttr}></game-config>
             <button type="submit">Create</button>
           </form></div>`
         : "";

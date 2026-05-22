@@ -343,8 +343,7 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("keep_or_play", (data) => {
-      this.silent._playableIdx = data.played_at_index;
-      this._update();
+      this.state._playableIdx = data.played_at_index;
     });
 
     this.onMessage("card_played", (data) => {
@@ -400,11 +399,8 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("game_over", (data) => {
-      if (this.silent.game) {
-        this.silent.game.state = "over";
-        this.silent.game.winner = data.winner;
-      }
-      this._update();
+      this.state.game.state = "over";
+      this.state.game.winner = data.winner;
     });
 
     this.onMessage("error", (data) => {
