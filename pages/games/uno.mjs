@@ -236,7 +236,7 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    this.on("dragdrop", (e) => {
+    this.addEventListener("dragdrop", (e) => {
       if (!e.detail.el.classList.contains("card-slot")) return;
       const pile = this.querySelector("discard-pile");
       if (!pile) return;
