@@ -267,15 +267,9 @@ export class UnoPage extends Page {
     this.on("draw-drag-end", () => {
       const fan = this.querySelector("card-fan");
       if (fan) fan.hideGhost();
+      const idx = this.#drawState?.idx ?? -1;
       this.#drawState = null;
-    });
-
-    const fan = this.querySelector("card-fan");
-    fan.addEventListener("card-external-drop", (e) => {
-      const idx = e.detail.idx;
-      const cardEl = e.detail.el;
-      const slot = fan.insertCardElement(idx, cardEl);
-      this.#pendingDraw = { idx, slot };
+      this.#pendingDraw = { idx };
       this.send({ action: "game", payload: { action: "draw_card" } });
     });
 
@@ -299,21 +293,22 @@ export class UnoPage extends Page {
     this.onMessage("draw", (data) => {
       const drawn = data.cards ?? [];
       if (this.#pendingDraw) {
-        const { idx, slot } = this.#pendingDraw;
+        const { idx } = this.#pendingDraw;
         this.#pendingDraw = null;
         if (drawn.length > 0) {
           const cardInfo = decodeCardId(drawn[0].id);
-          if (slot && slot.parentNode) {
-            const cardEl = slot.firstElementChild;
-            if (cardEl) {
-              cardEl.setAttribute("faceup", "true");
-              cardEl.setAttribute("color", cardInfo.color);
-              cardEl.setAttribute("type", cardInfo.kind);
-              cardEl.setAttribute("value", String(cardInfo.value ?? ""));
-            }
+          const fan = this.querySelector("card-fan");
+          if (fan && idx >= 0) {
+            fan.insertCard(idx, { tag: "uno-card", color: cardInfo.color, type: cardInfo.kind, value: String(cardInfo.value ?? "") });
+          } else if (fan) {
+            fan.addCards([{ tag: "uno-card", color: cardInfo.color, type: cardInfo.kind, value: String(cardInfo.value ?? "") }]);
           }
           if (this.silent.hand) {
-            this.silent.hand.splice(idx, 0, drawn[0]);
+            if (idx >= 0) {
+              this.silent.hand.splice(idx, 0, drawn[0]);
+            } else {
+              this.silent.hand = [...(this.silent.hand ?? []), ...drawn];
+            }
           }
         }
       } else {
@@ -444,10 +439,7 @@ export class UnoPage extends Page {
   }
 
   #failDraw(error) {
-    if (!this.#pendingDraw) return;
-    const { slot } = this.#pendingDraw;
     this.#pendingDraw = null;
-    if (slot && slot.parentNode) slot.remove();
   }
 }
 
