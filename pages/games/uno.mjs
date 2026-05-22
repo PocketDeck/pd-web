@@ -246,7 +246,8 @@ export class UnoPage extends Page {
       const slot = e.detail.el;
       const idx = parseInt(slot.dataset.index);
       if (isNaN(idx)) return;
-      this.#pendingDragDrop = { slot, idx };
+      const slotRect = slot.getBoundingClientRect();
+      this.#pendingDragDrop = { slot, idx, rect: { top: slotRect.top, left: slotRect.left, width: slotRect.width, height: slotRect.height } };
       this.#playCard(idx);
     });
 
@@ -364,10 +365,16 @@ export class UnoPage extends Page {
       if (this.#pendingPlay) {
         const idx = this.#pendingPlay.idx;
         if (this.#pendingDragDrop) {
-          const { slot } = this.#pendingDragDrop;
+          const { slot, rect } = this.#pendingDragDrop;
           this.#pendingDragDrop = null;
           const pile = this.querySelector("discard-pile");
-          if (slot && pile) {
+          if (slot && pile && rect) {
+            slot.style.position = "fixed";
+            slot.style.top = `${rect.top}px`;
+            slot.style.left = `${rect.left}px`;
+            slot.style.width = `${rect.width}px`;
+            slot.style.height = `${rect.height}px`;
+            document.body.appendChild(slot);
             moveWithAnimation(slot, pile, null, {
               duration: 300, easing: "ease-out",
               endCallback: () => { slot.remove(); },
