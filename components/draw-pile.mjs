@@ -13,7 +13,7 @@ export class DrawPile extends Component {
     ).join("");
     return html`
       <div id="stack">
-        <slot><uno-card faceup="false"></uno-card></slot>
+        <slot></slot>
         ${shims}
       </div>
     `;

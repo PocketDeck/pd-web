@@ -204,7 +204,7 @@ export class UnoPage extends Page {
       <div id="turn-indicator"><strong>${this.#playerName(turn)}</strong>'s turn</div>
       <div id="board">
         <div id="play-area">
-          <draw-pile></draw-pile>
+          <draw-pile><uno-card faceup="false"></uno-card></draw-pile>
           <div class="dir">${direction > 0 ? "→" : "←"}</div>
           <discard-pile>
             <uno-card color="${top.color}" type="${top.type}" value="${top.value}"></uno-card>
@@ -236,12 +236,30 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    this.on("discard-drop", (e) => {
-      const slot = e.detail.slot;
+    this.on("dragdrop", (e) => {
+      const inDiscardPile = e.composedPath().some(el =>
+        el instanceof HTMLElement && el.tagName === "DISCARD-PILE"
+      );
+      if (!inDiscardPile) return;
+      if (!e.detail.el.classList.contains("card-slot")) return;
+      e.preventDefault();
+      const slot = e.detail.el;
       const idx = parseInt(slot.dataset.index);
       if (isNaN(idx)) return;
       this.#pendingDragDrop = { slot, idx };
       this.#playCard(idx);
+    });
+
+    this.shadowRoot.addEventListener("dragenter", (e) => {
+      if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
+        this.querySelector("discard-pile")?.classList.add("drag-over");
+      }
+    });
+
+    this.shadowRoot.addEventListener("dragleave", (e) => {
+      if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
+        this.querySelector("discard-pile")?.classList.remove("drag-over");
+      }
     });
 
     this.on("draw-click", () => {
