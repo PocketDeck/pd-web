@@ -2,15 +2,66 @@ import { Component, html, css } from "/core/base.mjs";
 import { makeDraggable } from "/core/drag.mjs";
 
 export class DrawPile extends Component {
-  render() {
-    return html`<uno-card faceup="false"></uno-card>`;
+  static props = { count: 100 };
+
+  render({ count }) {
+    if (count <= 0) {
+      return html`<div class="empty"></div>`;
+    }
+    const n = Math.min(count, 3);
+    const shims = Array.from({ length: n }, (_, i) =>
+      `<div class="shim" style="--i: ${i}"></div>`
+    ).join("");
+    return html`
+      <div id="stack">
+        <slot><uno-card faceup="false"></uno-card></slot>
+        ${shims}
+      </div>
+      <div class="count">${count}</div>
+    `;
   }
 
   styles() {
     return css`
       :host {
         display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
-        cursor: pointer; transition: transform .2s, filter .2s;
+        transition: transform .2s, filter .2s;
+      }
+
+      #stack {
+        position: relative;
+        width: 96px;
+        height: 136px;
+      }
+
+      #stack ::slotted(*), #stack > :first-child {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+      }
+
+      .shim {
+        position: absolute;
+        inset: 0;
+        border-radius: 4px;
+        background: linear-gradient(145deg, #252560, #0f0f35);
+        border: 1px solid rgba(255,255,255,0.1);
+        z-index: calc(3 - var(--i, 0));
+        transform: translate(calc(var(--i, 0) * -1px), calc(var(--i, 0) * -1px));
+      }
+
+      .count {
+        font-size: 0.9rem; font-weight: 700;
+        background: rgba(255,255,255,0.08);
+        padding: 0.125rem 0.5rem; border-radius: 999px;
+        color: rgba(255,255,255,0.5);
+        min-width: 1.25rem; text-align: center;
+      }
+
+      .empty {
+        width: 96px; height: 136px;
+        border: 2px dashed rgba(255,255,255,0.15);
+        border-radius: 8px;
       }
     `;
   }
@@ -19,8 +70,23 @@ export class DrawPile extends Component {
     this.#setupDrag();
   }
 
+  _update() {
+    super._update();
+    this.#setupDrag();
+  }
+
+  _childrenUpdated() {
+    this.#setupDrag();
+  }
+
+  #cardFromSlot() {
+    const slot = this.shadowRoot.querySelector("slot");
+    if (!slot) return null;
+    return slot.assignedElements()[0] ?? slot.firstElementChild;
+  }
+
   #setupDrag() {
-    const card = this.querySelector("uno-card");
+    const card = this.#cardFromSlot();
     if (!card || card._draggable) return;
     const drag = makeDraggable(card);
 
@@ -45,18 +111,12 @@ export class DrawPile extends Component {
 
       if (card._dropHandled) {
         card.finalizeDrop?.();
-        this.#ensureCard();
+        this._update();
       } else {
         this.appendChild(card);
         card.finalizeDrop?.();
       }
     });
-  }
-
-  #ensureCard() {
-    if (this.querySelector("uno-card")) return;
-    this._update();
-    this.#setupDrag();
   }
 }
 
