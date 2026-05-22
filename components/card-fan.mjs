@@ -146,6 +146,7 @@ export class CardFan extends Component {
 
       if (slot._dropHandled) {
         slot._dropHandled = false;
+        slot.finalizeDrop?.();
         this.#dragState = null;
       } else if (to >= 0 && to !== from) {
         this.dispatchEvent(new CustomEvent("fan-insert", {

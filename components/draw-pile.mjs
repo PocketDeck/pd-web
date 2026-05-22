@@ -76,7 +76,7 @@ export class DrawPile extends Component {
   }
 
   #cardFromSlot() {
-    const slot = this.shadowRoot.querySelector("slot");
+    const slot = this.querySelector("slot");
     if (!slot) return null;
     return slot.assignedElements()[0] ?? slot.firstElementChild;
   }

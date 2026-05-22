@@ -237,11 +237,11 @@ export class UnoPage extends Page {
     });
 
     this.on("dragdrop", (e) => {
-      const inDiscardPile = e.composedPath().some(el =>
-        el instanceof HTMLElement && el.tagName === "DISCARD-PILE"
-      );
-      if (!inDiscardPile) return;
       if (!e.detail.el.classList.contains("card-slot")) return;
+      const pile = this.querySelector("discard-pile");
+      if (!pile) return;
+      const r = pile.getBoundingClientRect();
+      if (e.detail.x < r.left || e.detail.x > r.right || e.detail.y < r.top || e.detail.y > r.bottom) return;
       e.preventDefault();
       const slot = e.detail.el;
       const idx = parseInt(slot.dataset.index);
@@ -250,13 +250,13 @@ export class UnoPage extends Page {
       this.#playCard(idx);
     });
 
-    this.shadowRoot.addEventListener("dragenter", (e) => {
+    this.addEventListener("dragenter", (e) => {
       if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
         this.querySelector("discard-pile")?.classList.add("drag-over");
       }
     });
 
-    this.shadowRoot.addEventListener("dragleave", (e) => {
+    this.addEventListener("dragleave", (e) => {
       if (e.composedPath().some(el => el instanceof HTMLElement && el.tagName === "DISCARD-PILE")) {
         this.querySelector("discard-pile")?.classList.remove("drag-over");
       }
