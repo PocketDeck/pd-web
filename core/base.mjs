@@ -91,9 +91,8 @@ export class Component extends HTMLElement {
   }
 
   attributeChangedCallback(name, _, value) {
-    try { this.silent[name] = JSON.parse(value); }
-    catch { this.silent[name] = value; }
-    if (this.#mounted) this.#requestUpdate();
+    try { this.state[name] = JSON.parse(value); }
+    catch { this.state[name] = value; }
   }
 
   connectedCallback() {

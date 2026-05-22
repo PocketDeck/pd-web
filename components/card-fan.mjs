@@ -186,12 +186,12 @@ export class CardFan extends Component {
   #findDropTarget(x, y) {
     const zonesRoot = this.getElementById("drop-zones");
     if (zonesRoot && zonesRoot.children.length > 0) {
-      for (const zone of zonesRoot.children) {
-        const r = zone.getBoundingClientRect();
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return parseInt(zone.dataset.index);
-      }
+      const el = document.elementFromPoint(x, y);
+      const zone = el?.closest?.(".drop-zone");
+      if (zone) return parseInt(zone.dataset.index);
       return -1;
     }
+    // Fallback for external drags (draw-pile hover) — no zones rendered
     const slots = this.#getSlots();
     const n = slots.length;
     if (n === 0) return 0;
