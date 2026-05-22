@@ -1,28 +1,27 @@
+import { Component, html, css } from "/core/base.mjs";
 import { makeDraggable } from "/core/drag.mjs";
 
-export class DrawPile extends HTMLElement {
-  connectedCallback() {
-    this.#setup();
+export class DrawPile extends Component {
+  render() {
+    return html`<uno-card faceup="false"></uno-card>`;
   }
 
-  _childrenUpdated() {
-    if (!this.querySelector("uno-card")) this.#setup();
+  styles() {
+    return css`
+      :host {
+        display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
+        cursor: pointer; transition: transform .2s, filter .2s;
+      }
+    `;
   }
 
-  #setup() {
-    if (this.querySelector("uno-card")?._draggable) return;
-    const card = this.querySelector("uno-card") ?? this.#addCard();
-    this.#makeDraggable(card);
+  mounted() {
+    this.#setupDrag();
   }
 
-  #addCard() {
-    const card = document.createElement("uno-card");
-    card.setAttribute("faceup", "false");
-    this.appendChild(card);
-    return card;
-  }
-
-  #makeDraggable(card) {
+  #setupDrag() {
+    const card = this.querySelector("uno-card");
+    if (!card || card._draggable) return;
     const drag = makeDraggable(card);
 
     drag.onClick(() => {
@@ -49,10 +48,8 @@ export class DrawPile extends HTMLElement {
 
   #ensureCard() {
     if (this.querySelector("uno-card")) return;
-    const card = document.createElement("uno-card");
-    card.setAttribute("faceup", "false");
-    this.appendChild(card);
-    this.#makeDraggable(card);
+    this._update();
+    this.#setupDrag();
   }
 }
 

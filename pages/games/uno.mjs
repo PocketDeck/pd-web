@@ -119,13 +119,6 @@ export class UnoPage extends Page {
         display: flex; gap: 2.5rem; align-items: center;
       }
 
-      draw-pile, discard-pile {
-        display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
-        transition: transform .2s, filter .2s;
-      }
-      draw-pile { cursor: pointer; }
-      discard-pile.drag-over { transform: scale(1.08); filter: brightness(1.3); }
-
       .dir {
         font-size: 1.5rem; color: rgba(255,255,255,0.1);
         user-select: none; font-weight: 300;
