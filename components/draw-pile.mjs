@@ -29,6 +29,7 @@ export class DrawPile extends Component {
     });
 
     drag.onDragStart(() => {
+      card._skipAbort = true;
       this.dispatchEvent(new CustomEvent("draw-drag-start", { bubbles: true, composed: true }));
     });
 
@@ -40,9 +41,15 @@ export class DrawPile extends Component {
     });
 
     drag.onDragStop(() => {
-      card.finalizeDrop?.();
-      this.#ensureCard();
       this.dispatchEvent(new CustomEvent("draw-drag-end", { bubbles: true, composed: true }));
+
+      if (card._dropHandled) {
+        card.finalizeDrop?.();
+        this.#ensureCard();
+      } else {
+        this.appendChild(card);
+        card.finalizeDrop?.();
+      }
     });
   }
 
