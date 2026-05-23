@@ -14,18 +14,16 @@ function fanLayout(container, curvatureDeg) {
   });
 }
 
-function interpolateAngle(angles, i) {
+function fanAngles(count, curvature) {
+  return Array.from({ length: count }, (_, i) => curvature * ((i - (count - 1) / 2) / (count || 1)));
+}
+
+function zoneAngle(angles, i) {
   const n = angles.length;
   if (n <= 1) return 0;
   if (i === 0) return angles[0] - (angles[1] - angles[0]) / 2;
   if (i === n) return angles[n - 1] + (angles[n - 1] - angles[n - 2]) / 2;
   return (angles[i - 1] + angles[i]) / 2;
-}
-
-function getAngles(container) {
-  return Array.from(container.children).filter(c => c.classList.contains("card-slot")).map(
-    c => parseFloat(c.style.getPropertyValue("--angle")),
-  );
 }
 
 function getCardData(slot) {
@@ -180,9 +178,12 @@ export class CardFan extends Component {
       if (!getActiveWrapper()) return -1;
       this.#populateDropZones();
     }
-    const el = this.shadowRoot.elementFromPoint(x, y);
-    const zone = el?.closest?.(".drop-zone");
-    if (zone) return parseInt(zone.dataset.index);
+    for (const zone of this.querySelectorAll(".drop-zone")) {
+      const r = zone.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return parseInt(zone.dataset.index);
+      }
+    }
     return -1;
   }
 
@@ -190,9 +191,9 @@ export class CardFan extends Component {
     const zonesRoot = this.getElementById("drop-zones");
     zonesRoot.innerHTML = "";
     zonesRoot.classList.add("dragging");
-    const fan = this.getElementById("fan");
     const slots = this.#getSlots();
-    const angles = getAngles(fan);
+    const n = slots.length;
+    const angles = fanAngles(n, this.state.curvature);
     let w = this.#dragState?.dragW;
     let h = this.#dragState?.dragH;
     if (!w || !h) {
@@ -200,10 +201,10 @@ export class CardFan extends Component {
       if (s) { const r = s.getBoundingClientRect(); w = r.width; h = r.height; }
     }
     w ??= 68; h ??= 100;
-    for (let i = 0; i <= slots.length; i++) {
+    for (let i = 0; i <= n; i++) {
       const zone = document.createElement("div");
       zone.className = "drop-zone";
-      zone.style.setProperty("--angle", `${interpolateAngle(angles, i)}deg`);
+      zone.style.setProperty("--angle", `${zoneAngle(angles, i)}deg`);
       zone.style.width = w + "px";
       zone.style.height = h + "px";
       zone.dataset.index = i;
