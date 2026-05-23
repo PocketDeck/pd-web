@@ -109,8 +109,8 @@ function _track(x, y) {
   if (target !== active.overTarget) {
     const old = active.overTarget
     active.overTarget = target
-    if (old) targets.get(old)?.leave?.(active.element)
-    if (target) targets.get(target)?.over?.(active.element)
+    if (old) targets.get(old)?.leave?.(active.element, x, y)
+    if (target) targets.get(target)?.over?.(active.element, x, y)
   }
 
   active.config.move?.(active.element, x, y, active.overTarget)
@@ -159,8 +159,20 @@ function _find(x, y) {
   if (targets.size === 0) return null
   const points = document.elementsFromPoint(x, y)
   for (const el of points) {
-    const t = _climb(el)
+    const t = _drill(el, x, y)
     if (t) return t
+  }
+  return null
+}
+
+function _drill(el, x, y) {
+  const t = _climb(el)
+  if (t) return t
+  if (el.shadowRoot && el.shadowRoot.mode === 'open') {
+    const inner = el.shadowRoot.elementFromPoint(x, y)
+    if (inner && inner !== el) {
+      return _drill(inner, x, y)
+    }
   }
   return null
 }

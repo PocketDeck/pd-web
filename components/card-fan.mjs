@@ -1,5 +1,5 @@
 import { Component, html, css } from "/core/base.mjs";
-import { makeDraggable, getActiveWrapper } from "/core/drag.mjs";
+import { makeDraggable, getActiveWrapper, makeDroppable } from "/core/drag.mjs";
 
 function fanLayout(container, curvatureDeg) {
   const cards = Array.from(container.children);
@@ -43,6 +43,7 @@ export class CardFan extends Component {
 
   #dragState = null;
   #ghost = null;
+  #dropSetup = null;
 
   render() {
     return html`<div id="fan"></div><div id="drop-zones"></div>`;
@@ -51,10 +52,12 @@ export class CardFan extends Component {
   onMount() {
     this.#installSlots();
     this.#setupDrag();
+    this.#setupDrop();
   }
 
   onRender() {
     this.#setupDrag();
+    this.#setupDrop();
   }
 
   onChildrenChanged() {
@@ -90,6 +93,30 @@ export class CardFan extends Component {
     for (const slot of this.#getSlots()) this.#addSlotListeners(slot);
   }
 
+  #setupDrop() {
+    if (this.#dropSetup) this.#dropSetup.destroy();
+    const zones = this.getElementById("drop-zones");
+    if (!zones) return;
+    this.#dropSetup = makeDroppable(zones, {
+      over: () => {},
+      leave: () => { this.#removeGhost(); },
+      drop: (source, x, y) => {
+        if (!source.classList.contains("card-slot")) return false;
+        const zone = this.shadowRoot.elementFromPoint(x, y);
+        const to = parseInt(zone?.dataset?.index);
+        if (isNaN(to)) return false;
+        const from = parseInt(source.dataset.index);
+        if (isNaN(from)) return false;
+        const fan = this.getElementById("fan");
+        const ref = fan.children[Math.min(to, fan.children.length)] ?? null;
+        fan.insertBefore(source, ref);
+        fanLayout(fan, this.state.curvature);
+        if (this.#dragState) this.#dragState.dropIdx = to;
+        return true;
+      },
+    });
+  }
+
   #addSlotListeners(slot) {
     if (slot._dragSetup) return;
     slot._dragSetup = true;
@@ -121,27 +148,45 @@ export class CardFan extends Component {
         if (idx >= 0) this.#showGhost(idx);
       },
       end: (_el, target) => {
-        if (!this.#dragState) return;
-        const from = this.#dragState.idx;
-        const to = this.#dragState.dropIdx;
         this.#removeGhost();
         this.#clearDropZones();
 
-        if (target) {
-          // Drop was consumed by an external target (e.g., discard-pile)
-          // Coordinator moved slot back to original position.
+        if (!this.#dragState) return;
+
+        if (target === this.getElementById("drop-zones")) {
+          const from = this.#dragState.idx;
+          const to = this.#dragState.dropIdx;
+          if (to >= 0 && to !== from) {
+            this.dispatchEvent(new CustomEvent("fan-insert", {
+              bubbles: true, composed: true,
+              detail: { from, to },
+            }));
+            if (this.model.insert) {
+              const promise = this.model.insert(from, to);
+              if (promise && typeof promise.then === "function") {
+                promise.catch(() => {
+                  const f = this.getElementById("fan");
+                  const ref = f.children[Math.min(from, f.children.length)] ?? null;
+                  f.insertBefore(slot, ref);
+                  fanLayout(f, this.state.curvature);
+                });
+              }
+            }
+          }
           this.#dragState = null;
-        } else if (to >= 0 && to !== from) {
+        } else if (target) {
+          this.#dragState = null;
+        } else if (this.#dragState.dropIdx >= 0 && this.#dragState.dropIdx !== this.#dragState.idx) {
+          const from = this.#dragState.idx;
+          const to = this.#dragState.dropIdx;
           this.dispatchEvent(new CustomEvent("fan-insert", {
             bubbles: true, composed: true,
             detail: { from, to },
           }));
-
           const commit = () => {
             this.#placeCard(slot, to);
             this.#dragState = null;
           };
-
           if (this.model.insert) {
             const promise = this.model.insert(from, to);
             if (promise && typeof promise.then === "function") {
@@ -153,7 +198,7 @@ export class CardFan extends Component {
             commit();
           }
         } else {
-          this.#placeCard(slot, from);
+          this.#placeCard(slot, this.#dragState.idx);
           this.#dragState = null;
         }
       },
@@ -166,11 +211,12 @@ export class CardFan extends Component {
       if (!getActiveWrapper()) return -1;
       this.#populateDropZones();
     }
-    for (const zone of this.querySelectorAll(".drop-zone")) {
-      const r = zone.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-        return parseInt(zone.dataset.index);
-      }
+    const el = this.shadowRoot?.elementFromPoint(x, y);
+    if (el?.classList?.contains("drop-zone")) return parseInt(el.dataset.index);
+    let cur = el;
+    while (cur && cur !== this.shadowRoot) {
+      if (cur.classList?.contains("drop-zone")) return parseInt(cur.dataset.index);
+      cur = cur.parentElement;
     }
     return -1;
   }
