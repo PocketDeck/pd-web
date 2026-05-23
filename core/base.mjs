@@ -125,17 +125,22 @@ export class Component extends HTMLElement {
     });
   }
 
+  static get globalStyles() {
+    return `:host { -webkit-tap-highlight-color: transparent; user-select: none; }`;
+  }
+
   _skipBodyMorph = false;
 
   _update() {
+    const css = this.constructor.globalStyles + this.styles(this.state);
     if (!this.shadowRoot.getElementById('_body')) {
-      this.shadowRoot.innerHTML = `<style id="_style">${this.styles(this.state)}</style><div id="_body" style="display:contents">${this.render(this.state)}</div>`;
+      this.shadowRoot.innerHTML = `<style id="_style">${css}</style><div id="_body" style="display:contents">${this.render(this.state)}</div>`;
       this._bindEvents(this.shadowRoot);
       this.onRender();
       return;
     }
     const style = this.shadowRoot.getElementById('_style');
-    style.textContent = this.styles(this.state);
+    style.textContent = css;
     if (!this._skipBodyMorph) {
       const body = this.shadowRoot.getElementById('_body');
       const tpl = document.createElement('template');
