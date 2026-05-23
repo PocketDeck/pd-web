@@ -26,6 +26,10 @@ export class DrawPile extends Component {
         touch-action: none;
         transition: transform .2s, filter .2s;
       }
+      :host(:hover) {
+        transform: scale(1.08);
+        filter: brightness(1.3);
+      }
 
       #stack {
         position: relative;
