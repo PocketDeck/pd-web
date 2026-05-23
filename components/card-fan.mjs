@@ -350,6 +350,7 @@ export class CardFan extends Component {
 
       #drop-zones.dragging {
         z-index: 9999;
+        pointer-events: auto;
       }
 
       .card-slot, .drop-zone, .drop-indicator {
