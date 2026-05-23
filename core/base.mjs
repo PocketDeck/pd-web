@@ -185,8 +185,13 @@ export class Component extends HTMLElement {
   }
 
   _clearEventBindings() {
-    for (const [node, cleanup] of this.#evCleanup) cleanup();
-    this.#evCleanup = new WeakMap();
+    if (!this.shadowRoot) return;
+    const walker = document.createTreeWalker(this.shadowRoot, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const cleanup = this.#evCleanup.get(node);
+      if (cleanup) { cleanup(); this.#evCleanup.delete(node); }
+    }
   }
 
   // Slot change listener
