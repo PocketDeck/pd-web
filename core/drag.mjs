@@ -88,7 +88,7 @@ function _begin(element, px, py, x, y) {
   _pos(wrapper, x, y)
 
   active = {
-    element, wrapper, config,
+    source: element, element, wrapper, config,
     originalParent, originalSibling,
     x, y, dropping: false, ended: false,
     overTarget: null,
@@ -118,7 +118,7 @@ function _drop(x, y) {
   if (!active || active.ended) return
   active.dropping = true
 
-  const { element, wrapper, config, originalParent, overTarget } = active
+  const { element, wrapper, config, originalParent, originalSibling, overTarget } = active
   const target = overTarget ?? _find(x, y)
   let consumed = false
 
@@ -131,7 +131,7 @@ function _drop(x, y) {
     wrapper.remove()
   } else {
     if (originalParent && element.parentNode !== originalParent) {
-      originalParent.insertBefore(element, null)
+      originalParent.insertBefore(element, originalSibling ?? null)
     }
     wrapper.remove()
   }
@@ -143,10 +143,10 @@ function _drop(x, y) {
 function _cancel() {
   if (!active || active.ended) return
   active.ended = true
-  const { element, wrapper, config, originalParent } = active
+  const { element, wrapper, config, originalParent, originalSibling } = active
 
   if (originalParent && element.parentNode !== originalParent) {
-    originalParent.insertBefore(element, null)
+    originalParent.insertBefore(element, originalSibling ?? null)
   }
   wrapper.remove()
   config.end?.(element, null)
