@@ -180,13 +180,9 @@ export class CardFan extends Component {
       if (!getActiveWrapper()) return -1;
       this.#populateDropZones();
     }
-    const wrapper = getActiveWrapper();
-    const els = document.elementsFromPoint(x, y);
-    for (const el of els) {
-      if (wrapper?.contains(el)) continue;
-      const zone = el?.closest?.(".drop-zone");
-      if (zone) return parseInt(zone.dataset.index);
-    }
+    const el = this.shadowRoot.elementFromPoint(x, y);
+    const zone = el?.closest?.(".drop-zone");
+    if (zone) return parseInt(zone.dataset.index);
     return -1;
   }
 
