@@ -128,7 +128,7 @@ export class CardFan extends Component {
       },
       move: (_el, x, y) => {
         if (!this.#dragState) return;
-        const idx = this.#findDropTarget(x, y);
+        const idx = this.#findDropTarget(x, y, _el);
         if (idx === this.#dragState.dropIdx) return;
         this.#removeGhost();
         this.#dragState.dropIdx = idx;
@@ -174,7 +174,23 @@ export class CardFan extends Component {
     });
   }
 
-  #findDropTarget(x, y) {
+  #findDropTarget(x, y, draggedEl) {
+    const zonesRoot = this.getElementById("drop-zones");
+    if (zonesRoot && zonesRoot.children.length > 0) {
+      if (draggedEl) {
+        const wrapper = draggedEl.parentNode;
+        if (wrapper && wrapper.parentNode) {
+          const prev = wrapper.style.display;
+          wrapper.style.display = 'none';
+          const el = document.elementFromPoint(x, y);
+          wrapper.style.display = prev;
+          const zone = el?.closest?.(".drop-zone");
+          if (zone) return parseInt(zone.dataset.index);
+        }
+      }
+      return -1;
+    }
+    // Fallback for external drags (draw-pile hover) — no zones rendered
     const slots = this.#getSlots();
     const n = slots.length;
     if (n === 0) return 0;
