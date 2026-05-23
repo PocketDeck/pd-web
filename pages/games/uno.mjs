@@ -274,8 +274,10 @@ export class UnoPage extends Page {
       if (fan) fan.hideGhost();
       const idx = this.#drawState?.idx ?? -1;
       this.#drawState = null;
-      this.#pendingDraw = { idx };
-      this.send({ action: "game", payload: { action: "draw_card" } });
+      if (idx >= 0) {
+        this.#pendingDraw = { idx };
+        this.send({ action: "game", payload: { action: "draw_card" } });
+      }
     });
 
     this.onMessage("status", (data) => {
