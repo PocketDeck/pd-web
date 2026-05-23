@@ -1,5 +1,5 @@
 import { Component, html, css } from "/core/base.mjs";
-import { makeDraggable } from "/core/drag.mjs";
+import { makeDraggable, getActiveWrapper } from "/core/drag.mjs";
 
 function fanLayout(container, curvatureDeg) {
   const cards = Array.from(container.children);
@@ -128,7 +128,7 @@ export class CardFan extends Component {
       },
       move: (_el, x, y) => {
         if (!this.#dragState) return;
-        const idx = this.#findDropTarget(x, y, _el);
+        const idx = this.#findDropTarget(x, y);
         if (idx === this.#dragState.dropIdx) return;
         this.#removeGhost();
         this.#dragState.dropIdx = idx;
@@ -174,39 +174,19 @@ export class CardFan extends Component {
     });
   }
 
-  #findDropTarget(x, y, draggedEl) {
+  #findDropTarget(x, y) {
     const zonesRoot = this.getElementById("drop-zones");
-    if (zonesRoot && zonesRoot.children.length > 0) {
-      if (draggedEl) {
-        const wrapper = draggedEl.parentNode;
-        if (wrapper && wrapper.parentNode) {
-          const prev = wrapper.style.display;
-          wrapper.style.display = 'none';
-          const el = document.elementFromPoint(x, y);
-          wrapper.style.display = prev;
-          const zone = el?.closest?.(".drop-zone");
-          if (zone) return parseInt(zone.dataset.index);
-        }
-      }
-      return -1;
+    if (!zonesRoot || zonesRoot.children.length === 0) {
+      if (!getActiveWrapper()) return -1;
+      this.#populateDropZones();
     }
-    // Fallback for external drags (draw-pile hover) — no zones rendered
-    const slots = this.#getSlots();
-    const n = slots.length;
-    if (n === 0) return 0;
-    const fan = this.getElementById("fan");
-    const fanRect = fan.getBoundingClientRect();
-    const margin = (fanRect.bottom - fanRect.top) * 0.5;
-    if (y < fanRect.top - margin || y > fanRect.bottom + margin) return -1;
-    const midpoints = slots.map(s => {
-      const r = s.getBoundingClientRect();
-      return (r.left + r.right) / 2;
-    });
-    if (x < midpoints[0]) return 0;
-    for (let i = 0; i < n - 1; i++) {
-      if (x >= midpoints[i] && x < midpoints[i + 1]) return i + 1;
+    const wrapper = getActiveWrapper();
+    const els = document.elementsFromPoint(x, y);
+    for (const el of els) {
+      if (wrapper?.contains(el)) continue;
+      const zone = el?.closest?.(".drop-zone");
+      if (zone) return parseInt(zone.dataset.index);
     }
-    if (x >= midpoints[n - 1]) return n;
     return -1;
   }
 
@@ -217,8 +197,13 @@ export class CardFan extends Component {
     const fan = this.getElementById("fan");
     const slots = this.#getSlots();
     const angles = getAngles(fan);
-    const w = this.#dragState?.dragW ?? 0;
-    const h = this.#dragState?.dragH ?? 0;
+    let w = this.#dragState?.dragW;
+    let h = this.#dragState?.dragH;
+    if (!w || !h) {
+      const s = slots[0];
+      if (s) { const r = s.getBoundingClientRect(); w = r.width; h = r.height; }
+    }
+    w ??= 68; h ??= 100;
     for (let i = 0; i <= slots.length; i++) {
       const zone = document.createElement("div");
       zone.className = "drop-zone";
@@ -316,6 +301,10 @@ export class CardFan extends Component {
 
   hideGhost() {
     this.#removeGhost();
+  }
+
+  hideDropZones() {
+    this.#clearDropZones();
   }
 
   insertCardElement(idx, element) {

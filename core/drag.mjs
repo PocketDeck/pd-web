@@ -2,6 +2,8 @@ const sources = new Map()
 const targets = new Map()
 let active = null
 
+export function getActiveWrapper() { return active?.wrapper ?? null }
+
 export function makeDraggable(element, { start, move, end, click } = {}) {
   if (element._draggable) return { destroy() {} }
   element._draggable = true

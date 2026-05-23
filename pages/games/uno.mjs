@@ -271,7 +271,7 @@ export class UnoPage extends Page {
 
     this.on("draw-drag-end", () => {
       const fan = this.querySelector("card-fan");
-      if (fan) fan.hideGhost();
+      if (fan) { fan.hideGhost(); fan.hideDropZones(); }
       const idx = this.#drawState?.idx ?? -1;
       this.#drawState = null;
       if (idx >= 0) {
