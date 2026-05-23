@@ -166,21 +166,22 @@ export class Component extends HTMLElement {
       const prev = this.#evCleanup.get(node);
       if (prev) { prev(); this.#evCleanup.delete(node); }
 
+      const el = node;
       const fns = [];
       const rmed = [];
-      for (const attr of [...node.attributes]) {
+      for (const attr of [...el.attributes]) {
         if (!attr.name.startsWith("on:")) continue;
         const type = attr.name.slice(3);
         const name = attr.value;
         rmed.push(attr.name);
         const fn = typeof this[name] === "function" ? this[name].bind(this) : null;
         if (fn) {
-          node.addEventListener(type, fn);
-          fns.push(() => node.removeEventListener(type, fn));
+          el.addEventListener(type, fn);
+          fns.push(() => el.removeEventListener(type, fn));
         }
       }
-      for (const n of rmed) node.removeAttribute(n);
-      if (fns.length) this.#evCleanup.set(node, () => fns.forEach(f => f()));
+      for (const n of rmed) el.removeAttribute(n);
+      if (fns.length) this.#evCleanup.set(el, () => fns.forEach(f => f()));
     }
   }
 
