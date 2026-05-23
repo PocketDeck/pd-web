@@ -14,18 +14,6 @@ function fanLayout(container, curvatureDeg) {
   });
 }
 
-function fanAngles(count, curvature) {
-  return Array.from({ length: count }, (_, i) => curvature * ((i - (count - 1) / 2) / (count || 1)));
-}
-
-function zoneAngle(angles, i) {
-  const n = angles.length;
-  if (n <= 1) return 0;
-  if (i === 0) return angles[0] - (angles[1] - angles[0]) / 2;
-  if (i === n) return angles[n - 1] + (angles[n - 1] - angles[n - 2]) / 2;
-  return (angles[i - 1] + angles[i]) / 2;
-}
-
 function getCardData(slot) {
   const el = slot?.firstElementChild;
   if (!el) return { tag: "div" };
@@ -193,7 +181,6 @@ export class CardFan extends Component {
     zonesRoot.classList.add("dragging");
     const slots = this.#getSlots();
     const n = slots.length;
-    const angles = fanAngles(n, this.state.curvature);
     let w = this.#dragState?.dragW;
     let h = this.#dragState?.dragH;
     if (!w || !h) {
@@ -204,12 +191,12 @@ export class CardFan extends Component {
     for (let i = 0; i <= n; i++) {
       const zone = document.createElement("div");
       zone.className = "drop-zone";
-      zone.style.setProperty("--angle", `${zoneAngle(angles, i)}deg`);
       zone.style.width = w + "px";
       zone.style.height = h + "px";
       zone.dataset.index = i;
       zonesRoot.appendChild(zone);
     }
+    fanLayout(zonesRoot, this.state.curvature);
   }
 
   #clearDropZones() {
