@@ -126,7 +126,14 @@ export class Component extends HTMLElement {
   }
 
   static get globalStyles() {
-    return `:host { -webkit-tap-highlight-color: transparent; user-select: none; }`;
+    return css`
+      :host {
+        -webkit-tap-highlight-color: transparent; user-select: none;
+      }
+      #_body {
+        display: contents;
+      }
+    `;
   }
 
   _skipBodyMorph = false;
@@ -134,7 +141,10 @@ export class Component extends HTMLElement {
   _update() {
     const css = this.constructor.globalStyles + this.styles(this.state);
     if (!this.shadowRoot.getElementById('_body')) {
-      this.shadowRoot.innerHTML = `<style id="_style">${css}</style><div id="_body" style="display:contents">${this.render(this.state)}</div>`;
+      this.shadowRoot.innerHTML = html`
+        <style id="_style">${css}</style>
+        <div id="_body">${this.render(this.state)}</div>
+      `;
       this._bindEvents(this.shadowRoot);
       this.onRender();
       return;
