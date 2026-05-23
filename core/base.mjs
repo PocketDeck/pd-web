@@ -129,7 +129,7 @@ export class Component extends HTMLElement {
 
   _update() {
     if (!this.shadowRoot.getElementById('_body')) {
-      this.shadowRoot.innerHTML = `<style id="_style">${this.styles(this.state)}</style><div id="_body">${this.render(this.state)}</div>`;
+      this.shadowRoot.innerHTML = `<style id="_style">${this.styles(this.state)}</style><div id="_body" style="display:contents">${this.render(this.state)}</div>`;
       this._bindEvents(this.shadowRoot);
       this.onRender();
       return;
