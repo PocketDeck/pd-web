@@ -23,6 +23,7 @@ export class DrawPile extends Component {
     return css`
       :host {
         display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
+        touch-action: none;
         transition: transform .2s, filter .2s;
       }
 
