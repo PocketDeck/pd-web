@@ -181,8 +181,7 @@ function _climb(el) {
   let cur = el
   while (cur) {
     if (targets.has(cur)) return cur
-    if (cur.assignedSlot) cur = cur.assignedSlot
-    else if (cur instanceof ShadowRoot) cur = cur.host
+    if (cur instanceof ShadowRoot) cur = cur.host
     else cur = cur.parentElement ?? cur.parentNode
     if (cur instanceof DocumentFragment) break
   }
