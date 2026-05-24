@@ -7,11 +7,13 @@ export class ColorPicker extends Component {
     if (!visible) return "";
     return html`
       <div id="overlay" on:click="onOverlayClick">
-        <div class="pips">
-          <div class="pip red" data-color="red"></div>
-          <div class="pip yellow" data-color="yellow"></div>
-          <div class="pip green" data-color="green"></div>
-          <div class="pip blue" data-color="blue"></div>
+        <div id="box">
+          <div class="pips">
+            <div class="pip red" data-color="red"></div>
+            <div class="pip yellow" data-color="yellow"></div>
+            <div class="pip green" data-color="green"></div>
+            <div class="pip blue" data-color="blue"></div>
+          </div>
         </div>
       </div>
     `;
@@ -24,6 +26,11 @@ export class ColorPicker extends Component {
         position: fixed; inset: 0; z-index: 99999;
         background: rgba(0,0,0,0.5);
         display: flex; align-items: center; justify-content: center;
+      }
+      #box {
+        background: rgba(0,0,0,0.55);
+        border-radius: 24px;
+        padding: 24px;
       }
       .pips {
         display: grid;
