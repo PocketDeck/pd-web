@@ -1,7 +1,5 @@
 import { Component, html, css } from "/core/base.mjs";
 
-const COLORS = ["red", "blue", "green", "yellow"];
-
 export class ColorPicker extends Component {
   static props = { visible: false };
 
@@ -9,8 +7,11 @@ export class ColorPicker extends Component {
     if (!visible) return "";
     return html`
       <div id="overlay" on:click="onOverlayClick">
-        <div id="picker">
-          ${COLORS.map(c => `<div class="color" style="background:${c}" data-color="${c}"></div>`).join("")}
+        <div class="pips">
+          <div class="pip red" data-color="red"></div>
+          <div class="pip yellow" data-color="yellow"></div>
+          <div class="pip green" data-color="green"></div>
+          <div class="pip blue" data-color="blue"></div>
         </div>
       </div>
     `;
@@ -24,19 +25,25 @@ export class ColorPicker extends Component {
         background: rgba(0,0,0,0.5);
         display: flex; align-items: center; justify-content: center;
       }
-      #picker {
-        display: flex; gap: 1rem; padding: 1.75rem;
-        background: rgba(0,0,0,0.55);
-        border-radius: 2rem;
+      .pips {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        width: 160px;
+        height: 160px;
       }
-      .color {
-        width: 64px; height: 64px; border-radius: 50%;
+      .pip {
+        border-radius: 12px;
         cursor: pointer;
         transition: transform .15s, filter .15s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
       }
-      .color:hover { transform: scale(1.2); filter: brightness(1.3); }
-      .color:active { transform: scale(0.95); }
+      .pip:hover { transform: scale(1.15); filter: brightness(1.25); }
+      .pip:active { transform: scale(0.95); }
+      .pip.red { background: #f44336; }
+      .pip.yellow { background: #ffb300; }
+      .pip.green { background: #4caf50; }
+      .pip.blue { background: #2196f3; }
     `;
   }
 
@@ -49,11 +56,11 @@ export class ColorPicker extends Component {
   }
 
   onOverlayClick(e) {
-    const color = e.target.dataset?.color;
-    if (color) {
+    const pip = e.target.closest(".pip");
+    if (pip) {
       this.dispatchEvent(new CustomEvent("color-selected", {
         bubbles: true, composed: true,
-        detail: { color },
+        detail: { color: pip.dataset.color },
       }));
     } else if (e.target.id === "overlay") {
       this.dispatchEvent(new CustomEvent("color-cancel", {
