@@ -235,15 +235,7 @@ export class UnoPage extends Page {
     this.on("card-click", (e) => {
       const idx = parseInt(e.detail.card?.dataset?.index);
       if (isNaN(idx)) return;
-      const cards = this.silent.hand;
-      if (!cards || idx < 0 || idx >= cards.length) return;
-      const info = decodeCardId(cards[idx].id);
-      if (info.kind === "wild" || info.kind === "wilddraw4") {
-        this.#pendingPlay = { card: cards[idx], idx };
-        this.querySelector("color-picker").show();
-      } else {
-        this.#playCard(idx);
-      }
+      this.#playCard(idx);
     });
 
     makeDroppable(this.querySelector("discard-pile"), {
@@ -454,6 +446,16 @@ export class UnoPage extends Page {
     if (!cards || idx < 0 || idx >= cards.length) return;
     const card = cards[idx];
     if (!card) return;
+
+    if (!chosenColor) {
+      const info = decodeCardId(card.id);
+      if (info.kind === "wild" || info.kind === "wilddraw4") {
+        this.#pendingPlay = { card, idx };
+        this.querySelector("color-picker")?.show();
+        return;
+      }
+    }
+
     this.#pendingPlay = { card, idx };
 
     const info = decodeCardId(card.id);
