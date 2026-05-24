@@ -245,6 +245,14 @@ export class UnoPage extends Page {
       drop: (source, x, y) => {
         const idx = parseInt(source.dataset.index);
         if (isNaN(idx)) return false;
+        const cards = this.silent.hand;
+        if (cards && idx >= 0 && idx < cards.length) {
+          const info = decodeCardId(cards[idx].id);
+          if (info.kind === "wild" || info.kind === "wilddraw4") {
+            this.#playCard(idx);
+            return false;
+          }
+        }
         const r = source.getBoundingClientRect();
         this.#pendingDragDrop = { slot: source, idx, rect: { top: r.top, left: r.left, width: r.width, height: r.height } };
         this.#playCard(idx);
