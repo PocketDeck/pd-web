@@ -5,6 +5,7 @@ import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
 import "/components/draw-pile.mjs";
 import "/components/discard-pile.mjs";
+import "/components/color-picker.mjs";
 
 export class UnoPage extends Page {
   static props = {
@@ -212,6 +213,7 @@ export class UnoPage extends Page {
         </div>
       </div>
       <card-fan>${cardsHtml}</card-fan>
+      <color-picker></color-picker>
     `;
   }
 
@@ -233,7 +235,15 @@ export class UnoPage extends Page {
     this.on("card-click", (e) => {
       const idx = parseInt(e.detail.card?.dataset?.index);
       if (isNaN(idx)) return;
-      this.#playCard(idx);
+      const cards = this.silent.hand;
+      if (!cards || idx < 0 || idx >= cards.length) return;
+      const info = decodeCardId(cards[idx].id);
+      if (info.kind === "wild" || info.kind === "wilddraw4") {
+        this.#pendingPlay = { card: cards[idx], idx };
+        this.querySelector("color-picker").show();
+      } else {
+        this.#playCard(idx);
+      }
     });
 
     makeDroppable(this.querySelector("discard-pile"), {
@@ -278,6 +288,17 @@ export class UnoPage extends Page {
         this.#pendingDraw = { idx };
         this.send({ action: "game", payload: { action: "draw_card" } });
       }
+    });
+
+    this.on("color-selected", (e) => {
+      if (!this.#pendingPlay) return;
+      this.#playCard(this.#pendingPlay.idx, e.detail.color);
+      this.querySelector("color-picker")?.hide();
+    });
+
+    this.on("color-cancel", () => {
+      this.#pendingPlay = null;
+      this.querySelector("color-picker")?.hide();
     });
 
     this.onMessage("status", (data) => {
@@ -428,7 +449,7 @@ export class UnoPage extends Page {
     this.send({ action: "status" });
   }
 
-  #playCard(idx) {
+  #playCard(idx, chosenColor) {
     const cards = this.silent.hand;
     if (!cards || idx < 0 || idx >= cards.length) return;
     const card = cards[idx];
@@ -440,6 +461,7 @@ export class UnoPage extends Page {
       action: "play_card",
       card: { color: info.color, kind: info.kind, value: info.value },
     };
+    if (chosenColor) payload.chosen_color = chosenColor;
     if (this.silent._playableIdx === idx) {
       payload.hand_index = idx;
       delete this.silent._playableIdx;
