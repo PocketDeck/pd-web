@@ -8,6 +8,7 @@ import "/components/card-fan.mjs";
 import "/components/draw-pile.mjs";
 import "/components/discard-pile.mjs";
 import "/components/color-picker.mjs";
+import "/components/keep-prompt.mjs";
 
 export class UnoPage extends Page {
   static props = {
@@ -98,6 +99,7 @@ export class UnoPage extends Page {
       </div>
       <card-fan>${cardsHtml}</card-fan>
       <color-picker></color-picker>
+      <keep-prompt></keep-prompt>
     `;
   }
 
@@ -185,6 +187,24 @@ export class UnoPage extends Page {
       this.querySelector("color-picker")?.hide();
     });
 
+    this.on("keep-play", () => {
+      if (!this.#pendingPlay) return;
+      this.#playCard(this.#pendingPlay.idx);
+      this.querySelector("keep-prompt")?.hide();
+    });
+
+    this.on("keep-keep", () => {
+      if (!this.#pendingPlay) return;
+      this.send({ action: "game", payload: { action: "keep" } });
+      this.#pendingPlay = null;
+      this.querySelector("keep-prompt")?.hide();
+    });
+
+    this.on("keep-cancel", () => {
+      this.#pendingPlay = null;
+      this.querySelector("keep-prompt")?.hide();
+    });
+
     this.onMessage("status", (data) => {
       if (data.players) {
         for (const p of data.players) {
@@ -250,7 +270,16 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("keep_or_play", (data) => {
-      this.state._playableIdx = data.played_at_index;
+      const idx = data.played_at_index;
+      if (idx == null) return;
+      const card = data.card?.[0];
+      if (!card) return;
+      const info = decodeCardId(card.id);
+      const prompt = this.querySelector("keep-prompt");
+      if (prompt) {
+        prompt.show({ color: info.color, type: info.kind, value: String(info.value ?? "") });
+        this.#pendingPlay = { idx, card };
+      }
     });
 
     this.onMessage("card_played", (data) => {
@@ -352,9 +381,6 @@ export class UnoPage extends Page {
 
     const payload = { action: "play_card", hand_index: idx };
     if (chosenColor) payload.chosen_color = chosenColor;
-    if (this.silent._playableIdx === idx) {
-      delete this.silent._playableIdx;
-    }
     this.send({ action: "game", payload });
   }
 

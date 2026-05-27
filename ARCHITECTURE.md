@@ -176,21 +176,24 @@ User clicks draw pile
   → Page sends { action: "game", payload: { action: "draw_card" } }
   → Server responds with { action: "draw", cards: [...], hand: [...] }
       → Page sets silent.hand = data.hand, calls fan.setCards()
-  → Server responds with { action: "keep_or_play", hand_index: <idx> }
+  → Server responds with { action: "keep_or_play", hand_index: <idx>, card: [{ id }] }
       (only when drawn card is immediately playable)
-      → Page sets silent._playableIdx for "Play" button hint
+      → Page shows keep-prompt overlay with the drawn card
 ```
 
 ### ✋ Keep or Play (drawn card is playable)
 
 ```
-User clicks "Keep" button
-  → Page sends { action: "game", payload: { action: "keep_card" } }
-  → Server advances turn
-
-User clicks drawn card or "Play" button
+User clicks "Play" on keep-prompt
   → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx> } }
   → flows into normal play_card response (card_played)
+
+User clicks "Keep" on keep-prompt
+  → Page sends { action: "game", payload: { action: "keep" } }
+  → Server advances turn
+
+User clicks outside to cancel
+  → keep-prompt hides, no action sent (turn remains)
 ```
 
 ### ▶️ Play Card (click)
@@ -308,6 +311,8 @@ core/
 components/
   card.mjs               Card base class (renderFace/renderBack, card-click)
   card-fan.mjs           Fan layout + drag-drop (light-DOM children, model.insert)
+  color-picker.mjs       Wild color selection overlay
+  keep-prompt.mjs        Keep-or-play prompt for drawn playable cards
   game-config.mjs        Game selector + sub-config loader
   cards/
     uno.mjs              UNO card (decodeCardId, renderFace)
