@@ -15,8 +15,17 @@ export async function navigate(route) {
   history.pushState(null, "", route);
 }
 
+function showSpinner() {
+  document.getElementById("spinner")?.classList.add("active");
+}
+
+function hideSpinner() {
+  document.getElementById("spinner")?.classList.remove("active");
+}
+
 async function renderPage(route) {
   const { path, tagName } = parseRoute(route);
+  showSpinner();
 
   await import(`/pages/${path}.mjs`);
   const page = document.createElement(tagName);
@@ -27,4 +36,5 @@ async function renderPage(route) {
   const app = document.getElementById("app");
   app.innerHTML = "";
   app.appendChild(page);
+  hideSpinner();
 }
