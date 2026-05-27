@@ -54,7 +54,7 @@ The host element `<card-fan>` has no visible light-DOM children after mount — 
 
 ## Drag & Drop
 
-The drag system is built on `makeDraggable` from `core/drag.mjs` — a general-purpose framework for making any element draggable.
+The drag system is built on `makeDraggable` from `core/util.mjs` — a general-purpose framework for making any element draggable.
 
 ### Parent Morph Handling (`_childrenUpdated`)
 
@@ -158,7 +158,7 @@ If `model.insert` is not set, the card moves immediately with no backend call.
 
 ## Key Design Decisions
 
-### `makeDraggable` Framework (`core/drag.mjs`)
+### `makeDraggable` Framework (`core/util.mjs`)
 
 General-purpose drag system (not CardFan-specific):
 - `makeDraggable(element)` — returns `{ onDragStart, onDragStop, onDragMove, destroy }`

@@ -9,7 +9,7 @@ core/base.mjs   — Framework: Component, Page, FormComponent, html, css, deepRe
 core/socket.mjs — WebSocket singleton with reconnection
 core/router.mjs — SPA router (dynamic import-based)
 core/main.mjs   — Entry point
-core/drag.mjs   — makeDraggable, moveWithAnimation, containsDeep
+core/util.mjs   — makeDraggable, makeDroppable, moveWithAnimation, fetchStyles
 ```
 
 ## State: Three-Tier Model
@@ -70,6 +70,16 @@ Components with complex DOM management override `_update()` completely.
 ### Style Scoping
 
 Shadow DOM provides native scoping — `:host` selector targets the element itself. Component-specific styles are inside the shadow root.
+
+### External Styles (`fetchStyles`)
+
+Page-level CSS can be outsourced to `styles/` files and fetched at module load time via `fetchStyles(name)` from `core/util.mjs`:
+
+```
+styles/pages/uno.css  →  fetchStyles("pages/uno.css")
+```
+
+`fetchStyles` caches the result in a `Map` so repeated calls return the same string. It uses top-level `await` in the page module to block until CSS loads, ensuring the page never renders unstyled.
 
 ## WebSocket (`core/socket.mjs`)
 
@@ -135,7 +145,7 @@ Card extends Component
 - `render()` returns empty string; children come from **light DOM** (`<*-card>`) or via `addCards()` API
 - `mounted()` reads `this.children`, wraps each in `.card-slot` div, moves to shadow root
 - `_childrenUpdated()` — called by parent morph (via `_morphNode` in `base.mjs`) after new light DOM children are added. Clears old slots, wraps new children, registers drag listeners, recalculates layout.
-- Drag-and-drop built on `makeDraggable` from `core/drag.mjs`:
+- Drag-and-drop built on `makeDraggable` from `core/util.mjs`:
   - Each `.card-slot` registered via `makeDraggable(slot)` in `#addSlotListeners()`
   - `onDragStart`: card removed from fan (moved to fixed wrapper), drop zones built
   - `onDragMove`: zone hit-test via `getBoundingClientRect()`, clone indicator at gap
@@ -293,7 +303,7 @@ core/
   base.mjs               deepReactive, Component, Page, FormComponent, html, css
   socket.mjs             WS singleton + reconnection
   router.mjs             SPA router
-  drag.mjs               makeDraggable, moveWithAnimation, containsDeep
+  util.mjs               makeDraggable, makeDroppable, moveWithAnimation, fetchStyles
 
 components/
   card.mjs               Card base class (renderFace/renderBack, card-click)
@@ -315,4 +325,8 @@ pages/
     uno.mjs              UNO game (hand, opponents, play/draw/reorder)
     skipbo.mjs           Skip-Bo game (static demo)
     skyjo.mjs            Skyjo game (card reveal demo)
+
+styles/
+  pages/
+    uno.css              UNO page styles (fetched via fetchStyles)
 ```

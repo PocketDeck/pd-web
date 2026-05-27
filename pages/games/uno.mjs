@@ -1,5 +1,7 @@
 import { Page, html, css } from "/core/base.mjs";
-import { moveWithAnimation, makeDroppable } from "/core/drag.mjs";
+import { moveWithAnimation, makeDroppable, fetchStyles } from "/core/util.mjs";
+
+const pageStyles = await fetchStyles("pages/uno.css");
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -39,125 +41,7 @@ export class UnoPage extends Page {
   }
 
   styles() {
-    return css`
-      :host {
-        background: radial-gradient(ellipse at 50% 30%, #3a3a6a, #252540);
-        display: flex; flex-direction: column; height: 100vh;
-        color: #fff; font-family: system-ui, -apple-system, sans-serif;
-        overflow: hidden;
-      }
-
-      #opponents {
-        display: flex; gap: 1rem; padding: 1rem 2rem;
-        flex-shrink: 0; justify-content: center; flex-wrap: wrap;
-      }
-
-      .opponent {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 14px; padding: 0.75rem 1.25rem;
-        display: flex; align-items: center; gap: 0.75rem;
-        transition: border-color .35s, box-shadow .35s, background .35s;
-      }
-
-      .opponent.active {
-        border-color: #ffb300;
-        box-shadow: 0 0 24px rgba(255,179,0,0.15);
-        background: rgba(255,179,0,0.06);
-      }
-
-      .avatar {
-        width: 40px; height: 40px; border-radius: 50%;
-        background: rgba(255,255,255,0.06);
-        border: 2px solid rgba(255,255,255,0.08);
-        flex-shrink: 0;
-      }
-
-      .opponent.active .avatar {
-        border-color: #ffb300;
-        box-shadow: 0 0 10px rgba(255,179,0,0.3);
-      }
-
-      .name {
-        font-size: 1.1rem; font-weight: 600; white-space: nowrap;
-        color: rgba(255,255,255,0.75);
-      }
-
-      .opponent.active .name { color: #ffb300; }
-
-      .hand-row {
-        display: flex; align-items: center; gap: 0.375rem; margin-top: 0.2rem;
-      }
-
-      .mini-fan { display: flex; align-items: center; }
-
-      .mini-card {
-        width: 16px; height: 24px;
-        background: linear-gradient(145deg, #252560, #0f0f35);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 2px; margin-right: -8px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.4);
-      }
-
-      .mini-card:last-child { margin-right: 0; }
-
-      .badge {
-        font-size: 0.9rem; font-weight: 700;
-        background: rgba(255,255,255,0.06);
-        padding: 0.125rem 0.4rem; border-radius: 999px;
-        color: rgba(255,255,255,0.45);
-        min-width: 1.25rem; text-align: center;
-      }
-
-      #board {
-        flex: 1; display: flex;
-        align-items: center; justify-content: center;
-        padding: 1rem;
-        min-height: 0;
-      }
-
-      #play-area {
-        display: flex; gap: 2.5rem; align-items: center;
-      }
-
-      .dir {
-        font-size: 1.5rem; color: rgba(255,255,255,0.1);
-        user-select: none; font-weight: 300;
-      }
-
-      #turn-indicator {
-        font-size: 1.25rem;
-        color: rgba(255,255,255,0.35); font-weight: 500;
-        padding: 0.75rem;
-        text-align: center;
-      }
-
-      #turn-indicator strong {
-        color: #ffb300; font-weight: 700;
-      }
-
-      card-fan {
-        height: 200px; flex-shrink: 0;
-        margin-top: -200px;
-      }
-
-      .game-over { text-align: center; }
-
-      .game-over .title {
-        font-size: 2rem; font-weight: 800; margin-bottom: 0.375rem;
-        background: linear-gradient(135deg, #ffb300, #ff6b00);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-
-      .game-over .winner {
-        font-size: 1.1rem; color: rgba(255,255,255,0.5);
-      }
-
-      .prompt {
-        color: rgba(255,255,255,0.25); font-size: 0.95rem;
-      }
-    `;
+    return css`${pageStyles}`;
   }
 
   #playerName(id) {

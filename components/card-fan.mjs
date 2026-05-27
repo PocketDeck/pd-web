@@ -1,5 +1,5 @@
 import { Component, html, css } from "/core/base.mjs";
-import { makeDraggable, getActiveWrapper, makeDroppable } from "/core/drag.mjs";
+import { makeDraggable, getActiveWrapper, makeDroppable } from "/core/util.mjs";
 
 function fanLayout(container, curvatureDeg) {
   const cards = Array.from(container.children);

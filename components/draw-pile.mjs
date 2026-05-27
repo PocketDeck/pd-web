@@ -1,5 +1,5 @@
 import { Component, html, css } from "/core/base.mjs";
-import { makeDraggable } from "/core/drag.mjs";
+import { makeDraggable } from "/core/util.mjs";
 
 export class DrawPile extends Component {
   static props = { count: 100 };

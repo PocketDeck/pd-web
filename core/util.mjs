@@ -1,3 +1,14 @@
+const cache = new Map()
+
+export async function fetchStyles(name) {
+  if (cache.has(name)) return cache.get(name)
+  const res = await fetch(`/styles/${name}`)
+  if (!res.ok) { cache.set(name, ""); return "" }
+  const text = await res.text()
+  cache.set(name, text)
+  return text
+}
+
 const sources = new Map()
 const targets = new Map()
 let active = null
