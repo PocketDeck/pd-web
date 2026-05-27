@@ -466,14 +466,9 @@ export class UnoPage extends Page {
 
     this.#pendingPlay = { card, idx };
 
-    const info = decodeCardId(card.id);
-    const payload = {
-      action: "play_card",
-      card: { color: info.color, kind: info.kind, value: info.value },
-    };
+    const payload = { action: "play_card", hand_index: idx };
     if (chosenColor) payload.chosen_color = chosenColor;
     if (this.silent._playableIdx === idx) {
-      payload.hand_index = idx;
       delete this.silent._playableIdx;
     }
     this.send({ action: "game", payload });

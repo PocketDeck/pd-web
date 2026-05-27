@@ -155,32 +155,131 @@ Card extends Component
 - `config-change` / `game-select` events bubble up to login page
 - Sub-configs mirror server schema (camelCase keys for UNO)
 
-## Data Flow
+## WebSocket Message Flows
+
+All game actions use `{ action: "game", payload: {...} }` wrapper. Server responds with `data.action` matching the payload action (e.g. `play_card` → `card_played`).
+
+### 🃏 Draw Card
 
 ```
 User clicks draw pile
   → Page sends { action: "game", payload: { action: "draw_card" } }
-  → WS message to server
-  → Server responds with { action: "draw", cards: [...] }
-  → Page handler appends to silent.hand + calls fan.addCards()
-  → Page calls _update() to refresh board/opponents
+  → Server responds with { action: "draw", cards: [...], hand: [...] }
+      → Page sets silent.hand = data.hand, calls fan.setCards()
+  → Server responds with { action: "keep_or_play", hand_index: <idx> }
+      (only when drawn card is immediately playable)
+      → Page sets silent._playableIdx for "Play" button hint
 ```
 
-```
-User drags card → drops on zone
-  → CardFan calls model.insert(from, to) → returns Promise
-  → Page sends reorder_hand to server
-  → Server responds hand_reordered → resolve promise → CardFan finalizes
-  → Server responds error → reject promise → CardFan reverts
-```
+### ✋ Keep or Play (drawn card is playable)
 
 ```
-User clicks card to play
-  → Card dispatches card-click event
-  → Page removes card from silent.hand + fan.removeCard()
-  → Page sends { action: "game", payload: { action: "play_card", card: {...} } }
-  → Server responds card_played → Page updates game.topCard + player counts
-  → Server responds error → Page restores card via fan.insertCard()
+User clicks "Keep" button
+  → Page sends { action: "game", payload: { action: "keep_card" } }
+  → Server advances turn
+
+User clicks drawn card or "Play" button
+  → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx> } }
+  → flows into normal play_card response (card_played)
+```
+
+### ▶️ Play Card (click)
+
+```
+User clicks card in hand
+  → Card dispatches card-click event (bubbles, composed)
+  → Page checks if it's the user's turn
+  → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx> } }
+  → Server responds card_played:
+      {
+        action: "card_played",
+        player_idx: <n>,
+        card: { ... },
+        hand: [...] | null,       // null if not your hand
+        topCard: { color, kind, value },
+        direction: "fwd" | "rev",
+        players: [{ ... }]        // updated player state for display
+      }
+      → Page sets silent.hand = data.hand (if present), fan.setCards()
+      → Page updates silent.topCard, direction, players
+      → flag_last_card() checks for UNO call
+  → Server responds error:
+      { action: "error", message: "..." }
+      → Page shows error overlay with errorMessage
+```
+
+### ▶️ Play Card (drag-drop)
+
+```
+User drags card slot from fan → drops on discard pile
+  → Coordinator calls discard pile's drop callback
+  → drop handler captures slot's getBoundingClientRect()
+  → Page calls #playCard(idx) which sends play_card WS message
+  → drop handler returns true → coordinator consumes drop (wrapper removed, slot orphaned)
+  → Server responds card_played:
+      → card_played handler finds orphaned slot via this.#pendingDragDrop.slot
+      → Repositions slot at saved rect (position: fixed, append to body)
+      → Calls moveWithAnimation(slot, discardPile) to animate
+      → Removes slot after animation
+      → Updates hand / fan
+  → Server responds error:
+      → Removes orphaned slot
+      → Restores card in fan
+```
+
+### 🎨 Wild Card Color Selection
+
+```
+User plays wild/wilddraw4 card (click or drag-drop)
+  → #playCard detects kind === "wild" || "wilddraw4"
+  → Shows color-picker overlay (full-screen, 4 color pips)
+  → User clicks color pip
+  → color-picker dispatches color-selected { detail: { color: "red"|"yellow"|"green"|"blue" } }
+  → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx>, chosen_color: "..." } }
+  → Server responds card_played
+  → If drag-drop: wild cards return false from drop callback so coordinator does NOT consume
+    (slot stays in fan until card_played response confirms play)
+  → User clicks outside to cancel → color-picker dispatches color-cancel
+    → Page clears #pendingPlay, #pendingDragDrop; card stays in hand
+```
+
+### 🔄 Reorder Hand
+
+```
+User drags card → drops on fan drop zone
+  → CardFan drop callback sets #dragState.dropIdx = to, returns true (consumed)
+  → CardFan end callback: target === "drop-zones" → model persistence
+  → Page sends { action: "game", payload: { action: "reorder_hand", from: <n>, to: <m> } }
+  → Server responds hand_reordered:
+      { action: "hand_reordered", hand: [...] }
+      → Page sets silent.hand, calls fan.setCards()
+  → Server responds error:
+      → CardFan rejects model.insert() Promise
+      → CardFan reverts slot to original position via moveWithAnimation
+```
+
+### 📥 Game State
+
+```
+Page mounts
+  → { action: "status" }  (on login-page and uno-page)
+  → Server responds { action: "status", state: { gameState, players, ... } }
+  → Page populates silent state, calls _update()
+
+Server pushes game_started
+  → { action: "game_started", state: { hand, players, ... } }
+  → Page navigates to /games/uno with state
+
+Server pushes hand_update
+  → { action: "hand_update", hand: [...] }
+  → Page sets silent.hand, calls fan.setCards()
+
+Server pushes player_joined / player_left
+  → Page updates silent.players
+
+Server pushes turn_change
+  → { action: "turn_change", player_idx: <n> }
+  → Page highlights active player indicator
 ```
 
 ## File Map
