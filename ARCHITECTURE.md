@@ -248,7 +248,7 @@ User plays wild/wilddraw4 card (click or drag-drop)
   → Shows color-picker overlay (full-screen, 4 color pips)
   → User clicks color pip
   → color-picker dispatches color-selected { detail: { color: "red"|"yellow"|"green"|"blue" } }
-  → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx>, chosen_color: "..." } }
+  → Page sends { action: "game", payload: { action: "play_card", hand_index: <idx>, wildColor: "..." } }
   → Server responds card_played
   → If drag-drop: wild cards return false from drop callback so coordinator does NOT consume
     (slot stays in fan until card_played response confirms play)

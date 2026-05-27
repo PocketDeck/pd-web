@@ -380,7 +380,7 @@ export class UnoPage extends Page {
     this.#pendingPlay = { card, idx };
 
     const payload = { action: "play_card", hand_index: idx };
-    if (chosenColor) payload.chosen_color = chosenColor;
+    if (chosenColor) payload.wildColor = chosenColor;
     this.send({ action: "game", payload });
   }
 
