@@ -251,6 +251,15 @@ export class UnoPage extends Page {
         }
       }
       this.#pendingPlay = null;
+
+      if (drawn.length > 0 && this.silent.myId != null) {
+        const players = this.silent.players.map(p =>
+          p.id === this.silent.myId
+            ? { ...p, card_count: (p.card_count ?? 0) + drawn.length }
+            : p
+        );
+        this.setState({ players });
+      }
     });
 
     this.onMessage("hand_reordered", () => {
@@ -328,8 +337,13 @@ export class UnoPage extends Page {
     });
 
     this.onMessage("card_drawn", (data) => {
-      const p = this.state.players.find(p => p.id === data.player);
-      if (p) p.card_count = (p.card_count ?? 0) + (data.count ?? 1);
+      if (!this.silent.players) return;
+      const players = this.silent.players.map(p =>
+        p.id === data.player
+          ? { ...p, card_count: (p.card_count ?? 0) + (data.count ?? 1) }
+          : p
+      );
+      this.setState({ players });
     });
 
     this.onMessage("turn", (data) => {

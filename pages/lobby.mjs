@@ -26,8 +26,6 @@ class LobbyPage extends Page {
     `;
   }
 
-  }
-
   mounted() {
     this.on("click", (e) => {
       const root = e.composedPath().find(el => el.nodeType === 1);
@@ -52,13 +50,11 @@ class LobbyPage extends Page {
     });
 
     this.onMessage("ready", () => {
-      this.silent.ready = true;
-      this._update();
+      this.state.ready = true;
     });
 
     this.onMessage("unready", () => {
-      this.silent.ready = false;
-      this._update();
+      this.state.ready = false;
     });
 
     this.onMessage("start", () => {

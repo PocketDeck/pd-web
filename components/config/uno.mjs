@@ -17,10 +17,9 @@ class UNOConfig extends FormComponent {
     try {
       const parsed = JSON.parse(value);
       for (const k of Object.keys(UNOConfig.props)) {
-        if (k in parsed) this.silent[k] = parsed[k];
+        if (k in parsed) this.state[k] = parsed[k];
       }
     } catch {}
-    this._update();
   }
 
   render({ cardsPerPlayer, playAfterDraw, aggregateDraws, blackOnBlack }) {
