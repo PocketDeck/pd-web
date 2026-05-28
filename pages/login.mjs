@@ -1,4 +1,4 @@
-import { Page, html, css } from "/core/base.mjs";
+import { Page, html } from "/core/base.mjs";
 import "/components/game-config.mjs";
 
 class LoginPage extends Page {
@@ -9,6 +9,7 @@ class LoginPage extends Page {
     room: "",
     config: null,
   };
+  static stylesLink = "/styles/pages/login.css";
 
   render({ mode, config, name, room, game }) {
     const activeClass = (tab) => (mode === tab ? "active" : "");
@@ -44,56 +45,6 @@ class LoginPage extends Page {
     return header + form;
   }
 
-  styles() {
-    return css`
-      :host {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        min-height: 100vh; width: 100vw;
-        font-family: "Inter", sans-serif;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-      }
-      h1 {
-        text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 1rem;
-        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      }
-      .tab-container { display: flex; justify-content: center; margin-bottom: 2rem; gap: 1rem; }
-      .tab {
-        padding: 0.75rem 2rem; cursor: pointer; font-weight: 600; color: #fff;
-        border-radius: 999px; background: rgba(255, 255, 255, 0.15);
-        transition: background 0.3s, transform 0.2s;
-      }
-      .tab:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
-      .tab.active { background: #fff; color: #764ba2; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-
-      form {
-        background: rgba(255, 255, 255, 0.9); padding: 2rem; border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); width: 320px;
-        display: flex; flex-direction: column; gap: 1rem; text-align: center;
-      }
-      form * { animation: fade 0.5s ease-in-out; }
-      @keyframes fade {
-        from { opacity: 0; transform: translateY(5px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      form h2 { margin-bottom: 1rem; font-size: 1.5rem; color: #333; }
-      input[type="text"] {
-        padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #ccc;
-        font-size: 1rem; outline: none; transition: border 0.2s, box-shadow 0.2s;
-        box-sizing: border-box; width: 100%;
-      }
-      input[type="text"]:focus { border-color: #764ba2; box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2); }
-      button {
-        padding: 0.75rem; border: none; border-radius: 8px; background: #764ba2;
-        color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer;
-        transition: background 0.3s, transform 0.2s;
-      }
-      button:hover { background: #667eea; transform: translateY(-2px); }
-      .roomId { text-transform: uppercase; }
-      @media (max-width: 400px) {
-        form { width: 90%; padding: 1.5rem; }
-        .tab { padding: 0.5rem 1.5rem; }
-      }
-    `;
   }
 
   mounted() {

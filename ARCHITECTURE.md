@@ -335,6 +335,8 @@ pages/
 
 styles/
   pages/
+    login.css            Login page styles (via stylesLink)
+    lobby.css            Lobby page styles (via stylesLink)
     uno.css              UNO page styles (via stylesLink)
   components/
     card-fan.css         CardFan styles (via stylesLink)
