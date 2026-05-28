@@ -1,4 +1,4 @@
-import { Component, html, css } from "/core/base.mjs";
+import { Component, html } from "/core/base.mjs";
 import { makeDraggable, getActiveWrapper, makeDroppable } from "/core/util.mjs";
 
 function fanLayout(container, curvatureDeg) {
@@ -36,6 +36,7 @@ function buildCard(cardData) {
 
 export class CardFan extends Component {
   static props = { curvature: 70 };
+  static stylesLink = "/styles/components/card-fan.css";
 
   _skipBodyMorph = true;
 
@@ -349,86 +350,6 @@ export class CardFan extends Component {
     return slot;
   }
 
-  styles() {
-    return css`
-      :host {
-        --raise: -225%;
-        --hover-raise: -42.5%;
-        --zone-w: 68px;
-        --zone-h: 100px;
-        display: grid;
-        width: 100%;
-        height: 200px;
-        touch-action: none;
-        user-select: none;
-      }
-
-      #fan, #drop-zones {
-        grid-column: 1 / 2;
-        grid-row: 1 / 2;
-      }
-
-      #fan {
-        position: relative;
-        transform-style: preserve-3d;
-      }
-
-      #drop-zones {
-        position: relative;
-        pointer-events: none;
-      }
-
-      #drop-zones.dragging {
-        z-index: 9999;
-        pointer-events: auto;
-      }
-
-      .card-slot, .drop-zone, .drop-indicator {
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform-origin: 50% 100%;
-        --angle: 0deg;
-        transform: translateX(-50%) translateY(calc(-1 * var(--raise))) rotate(var(--angle)) translateY(var(--raise));
-        touch-action: none;
-      }
-
-      .card-slot {
-        cursor: pointer;
-        transition: transform 300ms;
-        z-index: var(--z, 0);
-        transform-style: preserve-3d;
-      }
-
-      .card-slot > * {
-        display: block;
-        transition: transform 200ms;
-        pointer-events: none;
-      }
-
-      .card-slot:hover > * {
-        transform: translateY(var(--hover-raise)) rotate(calc(-1 * var(--angle))) scale(1.2);
-        translate: 0 0 1px;
-      }
-
-      .drop-zone {
-        opacity: 0;
-        pointer-events: auto;
-      }
-
-      .drop-indicator {
-        opacity: 0.55;
-        pointer-events: none;
-        z-index: var(--z, 0);
-      }
-
-      .drop-indicator > * {
-        display: block;
-        pointer-events: none;
-      }
-
-    `;
-  }
 }
 
 CardFan.registerTag("card-fan");

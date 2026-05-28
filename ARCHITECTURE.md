@@ -335,5 +335,7 @@ pages/
 
 styles/
   pages/
-    uno.css              UNO page styles (fetched via fetchStyles)
+    uno.css              UNO page styles (via stylesLink)
+  components/
+    card-fan.css         CardFan styles (via stylesLink)
 ```
