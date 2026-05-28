@@ -9,7 +9,7 @@ core/base.mjs   — Framework: Component, Page, FormComponent, html, css, deepRe
 core/socket.mjs — WebSocket singleton with reconnection
 core/router.mjs — SPA router (dynamic import-based)
 core/main.mjs   — Entry point
-core/util.mjs   — makeDraggable, makeDroppable, moveWithAnimation, fetchStyles
+core/util.mjs   — makeDraggable, makeDroppable, moveWithAnimation
 ```
 
 ## State: Three-Tier Model
@@ -71,15 +71,17 @@ Components with complex DOM management override `_update()` completely.
 
 Shadow DOM provides native scoping — `:host` selector targets the element itself. Component-specific styles are inside the shadow root.
 
-### External Styles (`fetchStyles`)
+### External Styles (`stylesLink`)
 
-Page-level CSS can be outsourced to `styles/` files and fetched at module load time via `fetchStyles(name)` from `core/util.mjs`:
+Page-level CSS can be outsourced to `styles/` files and linked into the shadow root via the static `stylesLink` property:
 
+```js
+class UnoPage extends Page {
+  static stylesLink = "/styles/pages/uno.css";
+}
 ```
-styles/pages/uno.css  →  fetchStyles("pages/uno.css")
-```
 
-`fetchStyles` caches the result in a `Map` so repeated calls return the same string. It uses top-level `await` in the page module to block until CSS loads, ensuring the page never renders unstyled.
+The base class `_update()` checks for `this.constructor.stylesLink` on first render and appends a `<link rel="stylesheet">` element to the shadow root. The external stylesheet is loaded natively by the browser — no JS fetch or caching needed.
 
 ## WebSocket (`core/socket.mjs`)
 
@@ -306,7 +308,7 @@ core/
   base.mjs               deepReactive, Component, Page, FormComponent, html, css
   socket.mjs             WS singleton + reconnection
   router.mjs             SPA router
-  util.mjs               makeDraggable, makeDroppable, moveWithAnimation, fetchStyles
+  util.mjs               makeDraggable, makeDroppable, moveWithAnimation
 
 components/
   card.mjs               Card base class (renderFace/renderBack, card-click)

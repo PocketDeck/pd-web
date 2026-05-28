@@ -141,7 +141,11 @@ export class Component extends HTMLElement {
   _update() {
     const css = this.constructor.globalStyles + this.styles(this.state);
     if (!this.shadowRoot.getElementById('_body')) {
+      const linkHtml = this.constructor.stylesLink
+        ? `<link id="_stylesLink" rel="stylesheet" href="${this.constructor.stylesLink}">`
+        : "";
       this.shadowRoot.innerHTML = html`
+        ${linkHtml}
         <style id="_style">${css}</style>
         <div id="_body">${this.render(this.state)}</div>
       `;

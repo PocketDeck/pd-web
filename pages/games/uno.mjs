@@ -1,7 +1,5 @@
-import { Page, html, css } from "/core/base.mjs";
-import { moveWithAnimation, makeDroppable, fetchStyles } from "/core/util.mjs";
-
-const pageStyles = await fetchStyles("pages/uno.css");
+import { Page, html } from "/core/base.mjs";
+import { moveWithAnimation, makeDroppable } from "/core/util.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -11,6 +9,7 @@ import "/components/color-picker.mjs";
 import "/components/keep-prompt.mjs";
 
 export class UnoPage extends Page {
+  static stylesLink = "/styles/pages/uno.css";
   static props = {
     state: 'playing',
     players: [],
@@ -42,7 +41,7 @@ export class UnoPage extends Page {
   }
 
   styles() {
-    return css`${pageStyles}`;
+    return "";
   }
 
   #playerName(id) {
