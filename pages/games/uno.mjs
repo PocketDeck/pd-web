@@ -40,10 +40,6 @@ export class UnoPage extends Page {
     }).join("");
   }
 
-  styles() {
-    return "";
-  }
-
   #playerName(id) {
     return this.#playerMap[id] ?? `Player ${id}`;
   }
