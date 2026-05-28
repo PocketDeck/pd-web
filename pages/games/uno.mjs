@@ -1,5 +1,6 @@
 import { Page, html } from "/core/base.mjs";
 import { moveWithAnimation, makeDroppable } from "/core/util.mjs";
+import { navigate } from "/core/router.mjs";
 import "/components/cards/uno.mjs";
 import { decodeCardId } from "/components/cards/uno.mjs";
 import "/components/card-fan.mjs";
@@ -68,6 +69,7 @@ export class UnoPage extends Page {
           <div class="game-over">
             <div class="title">Game Over</div>
             <div class="winner">${this.#playerName(winner)} wins!</div>
+            <button class="back-to-lobby">Back to Lobby</button>
           </div>
         </div>
       `;
@@ -325,6 +327,11 @@ export class UnoPage extends Page {
       this.#pendingPlay = null;
     });
 
+    this.onMessage("card_drawn", (data) => {
+      const p = this.state.players.find(p => p.id === data.player);
+      if (p) p.card_count = (p.card_count ?? 0) + (data.count ?? 1);
+    });
+
     this.onMessage("turn", (data) => {
       this.state.turn = data.player;
     });
@@ -352,6 +359,12 @@ export class UnoPage extends Page {
         this.#failDraw(data.error);
       }
       this._update();
+    });
+
+    this.on("click", (e) => {
+      if (e.composedPath().some(el => el.classList?.contains("back-to-lobby"))) {
+        navigate("/lobby");
+      }
     });
 
     this.send({ action: "status" });
